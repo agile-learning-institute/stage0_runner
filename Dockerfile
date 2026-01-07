@@ -1,6 +1,9 @@
 # Base Image
 FROM python:3.12-slim
 
+# Label the image with the source code repository
+LABEL org.opencontainers.image.source="https://github.com/agile-learning-institute/stage0_runner"
+
 # Set the working directory in the container
 WORKDIR /opt/stage0/runner
 

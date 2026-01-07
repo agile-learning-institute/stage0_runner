@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+
+[scripts]
+validate = "python src/command.py validate --runbook ${RUNBOOK:-./test/runbooks/SimpleRunbook.md}"
+execute = "python src/command.py execute --runbook ${RUNBOOK:-./test/runbooks/SimpleRunbook.md}"
+
+[requires]
+python_version = "3.12"
+

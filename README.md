@@ -1,8 +1,8 @@
 # Stage0 Runbook Runner
 
-This repository contains the `stage0_runner` utility which is used to execute Runbooks. A runbook is a markdown file, with some specific layout requirements, see [RUNBOOK.md](./RUNBOOK.md) for details. 
+This repository contains the `stage0_runner` utility which is used to execute Runbooks. A runbook is a markdown file, with some specific layout requirements, see [RUNBOOK.md](./RUNBOOK.md) for details about, and an empty template [Runbook.md](./test/runbooks/Runbook.md), and a [Simple Example](./test/runbooks/SimpleRunbook.md) runbook for examples.
 
-## Prerequisites
+## Contributing Prerequisites
 - Python 3.12+
 - pipenv (install with `pip install pipenv`)
 - Docker (for container-based execution)

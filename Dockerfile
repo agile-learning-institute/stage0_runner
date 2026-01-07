@@ -4,6 +4,11 @@ FROM python:3.12-slim
 # Set the working directory in the container
 WORKDIR /opt/stage0/runner
 
+# Install zsh (required for runbook scripts)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends zsh && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy the Pipfile and Pipfile.lock to the container
 COPY Pipfile Pipfile.lock ./
 

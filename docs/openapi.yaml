@@ -1,0 +1,351 @@
+openapi: 3.0.3
+info:
+  title: Stage0 Runbook API
+  description: |
+    REST API for executing, validating, and managing runbooks.
+    Runbooks are markdown files that describe automated tasks with executable scripts.
+    
+    ## Environment Variables
+    Environment variables required by runbooks can be passed as query parameters.
+    For example, to execute a runbook that requires `TEST_VAR`, use:
+    ```
+    POST /api/SimpleRunbook.md?TEST_VAR=test_value
+    ```
+  version: 0.1.0
+  contact:
+    name: Agile Learning Institute
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: http://localhost:8080
+    description: Local development server (custom port)
+
+tags:
+  - name: Runbooks
+    description: Runbook operations (execute, validate, retrieve)
+
+paths:
+  /api/{runbook}:
+    post:
+      tags:
+        - Runbooks
+      summary: Execute a runbook
+      description: |
+        Execute a runbook script. The runbook file is identified by the path parameter.
+        Environment variables required by the runbook can be passed as query parameters.
+        
+        Execution will:
+        1. Validate the runbook
+        2. Execute the script
+        3. Append execution history to the runbook file
+        4. Return execution results including stdout, stderr, and a viewer link
+      operationId: executeRunbook
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      responses:
+        '200':
+          description: Runbook executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+        '400':
+          description: Bad request - validation failed or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X POST "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+
+    patch:
+      tags:
+        - Runbooks
+      summary: Validate a runbook
+      description: |
+        Validate a runbook without executing it. Checks that:
+        - The runbook file exists
+        - Required sections are present
+        - Environment variables are set
+        - File system requirements are met
+        
+        Environment variables can be passed as query parameters for validation.
+      operationId: validateRunbook
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      responses:
+        '200':
+          description: Runbook is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '400':
+          description: Validation failed - runbook has errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '404':
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error during validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X PATCH "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+
+    get:
+      tags:
+        - Runbooks
+      summary: Get runbook content
+      description: |
+        Retrieve the markdown content of a runbook file.
+        This is a read-only operation that returns the full runbook including execution history.
+      operationId: getRunbook
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      responses:
+        '200':
+          description: Runbook retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunbookContent'
+        '404':
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X GET "http://localhost:5000/api/SimpleRunbook.md"
+
+  /api/runbooks:
+    get:
+      tags:
+        - Runbooks
+      summary: List all runbooks
+      description: Retrieve a list of all available runbooks in the runbooks directory
+      operationId: listRunbooks
+      responses:
+        '200':
+          description: List of runbooks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunbookList'
+        '404':
+          description: Runbooks directory not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X GET "http://localhost:5000/api/runbooks"
+
+components:
+  schemas:
+    ExecuteResponse:
+      type: object
+      required:
+        - success
+        - runbook
+        - return_code
+      properties:
+        success:
+          type: boolean
+          description: Whether execution completed successfully (return code 0)
+          example: true
+        runbook:
+          type: string
+          description: The runbook filename that was executed
+          example: SimpleRunbook.md
+        return_code:
+          type: integer
+          description: Exit code from script execution
+          example: 0
+        stdout:
+          type: string
+          description: Standard output from script execution
+          example: "Running SimpleRunbook\nTest variable value: test_value\n"
+        stderr:
+          type: string
+          description: Standard error from script execution
+          example: ""
+        errors:
+          type: array
+          items:
+            type: string
+          description: Validation or execution errors (empty if successful)
+          example: []
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Validation warnings
+          example: []
+        viewer_link:
+          type: string
+          format: uri
+          description: Link for SPA integration to view the updated runbook (format should match your SPA routing)
+          example: "http://localhost:5000/runbook/SimpleRunbook.md"
+
+    ValidateResponse:
+      type: object
+      required:
+        - success
+        - runbook
+      properties:
+        success:
+          type: boolean
+          description: Whether validation passed
+          example: true
+        runbook:
+          type: string
+          description: The runbook filename that was validated
+          example: SimpleRunbook.md
+        errors:
+          type: array
+          items:
+            type: string
+          description: Validation errors (empty if validation passed)
+          example: []
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Validation warnings
+          example:
+            - "Runbook name 'SimpleRunbook' does not match filename 'simple-runbook'"
+
+    RunbookContent:
+      type: object
+      required:
+        - success
+        - filename
+        - name
+        - content
+      properties:
+        success:
+          type: boolean
+          example: true
+        filename:
+          type: string
+          description: The runbook filename
+          example: SimpleRunbook.md
+        name:
+          type: string
+          description: The runbook name from the first H1 header
+          example: SimpleRunbook
+        content:
+          type: string
+          description: The full markdown content of the runbook
+          example: "# SimpleRunbook\n\n# Documentation\n..."
+
+    RunbookList:
+      type: object
+      required:
+        - success
+        - runbooks
+      properties:
+        success:
+          type: boolean
+          example: true
+        runbooks:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunbookInfo'
+          description: List of available runbooks
+
+    RunbookInfo:
+      type: object
+      required:
+        - filename
+        - name
+        - path
+      properties:
+        filename:
+          type: string
+          description: The runbook filename
+          example: SimpleRunbook.md
+        name:
+          type: string
+          description: The runbook name from the first H1 header
+          example: SimpleRunbook
+        path:
+          type: string
+          description: Relative path to the runbook file
+          example: SimpleRunbook.md
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+          example: "Runbook not found: InvalidRunbook.md"
+        runbook:
+          type: string
+          description: The runbook filename (if applicable)
+          example: InvalidRunbook.md
+

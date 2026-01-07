@@ -287,16 +287,38 @@ def main():
     )
     parser.add_argument(
         'action',
-        choices=['validate', 'execute'],
-        help='Action to perform: validate or execute'
+        choices=['validate', 'execute', 'serve'],
+        help='Action to perform: validate, execute, or serve (API server)'
     )
     parser.add_argument(
         '--runbook',
         default=os.environ.get('RUNBOOK', './samples/runbooks/SimpleRunbook.md'),
         help='Path to runbook file (or set RUNBOOK environment variable)'
     )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=int(os.environ.get('API_PORT', '5000')),
+        help='Port for API server (default: 5000, or API_PORT env var)'
+    )
+    parser.add_argument(
+        '--runbooks-dir',
+        default=os.environ.get('RUNBOOKS_DIR', './samples/runbooks'),
+        help='Directory containing runbooks (default: ./samples/runbooks, or RUNBOOKS_DIR env var)'
+    )
     
     args = parser.parse_args()
+    
+    if args.action == 'serve':
+        from server import create_app
+        app = create_app(args.runbooks_dir)
+        port = args.port
+        print(f"Starting runbook API server on http://0.0.0.0:{port}")
+        print(f"Runbooks directory: {Path(args.runbooks_dir).resolve()}")
+        print(f"API endpoints available at http://localhost:{port}/api/")
+        print(f"API Explorer available at http://localhost:{port}/docs/explorer.html")
+        app.run(host='0.0.0.0', port=port, debug=False)
+        return
     
     if not args.runbook:
         print("ERROR: Runbook path not provided. Use --runbook or set RUNBOOK environment variable.", file=sys.stderr)

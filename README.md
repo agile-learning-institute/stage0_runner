@@ -36,6 +36,11 @@ export RUNBOOK=./samples/runbooks/SimpleRunbook.md
 export TEST_VAR=test_value
 pipenv run validate
 
+# Start the API server (default port 5000)
+export API_PORT=8080
+export RUNBOOKS_DIR=./samples
+pipenv run serve
+
 # Build the deployment container
 make container
 
@@ -52,6 +57,53 @@ Validation confirms the runbook is well formed and all runtime dependencies are 
 - Verify that the runbook has a # History Header
 
 On success, validation prints a success message and exits with code 0. On failure, it prints all errors and warnings and exits with code 1.
+
+## API Server
+
+The `runbook serve` command starts a Flask web server that provides:
+- REST API endpoints for runbook operations
+- An API Explorer UI at `/docs/explorer.html` for interactive API documentation
+- Static file serving for documentation and OpenAPI specification
+
+**Note:** A full-featured Single Page Application (SPA) frontend should be built in a separate repository that consumes this API.
+
+### Sample curl commands - see the API Explorer for more details
+```sh
+## Execute a runbook POST 
+curl -X POST "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+
+## Validate a runbook PATCH 
+curl -X PATCH "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+
+## Get a Runbook Markdown File
+curl -X GET "http://localhost:5000/api/SimpleRunbook.md"
+```
+
+### API Explorer
+
+The API Explorer is available at `/docs/explorer.html` and provides:
+- Interactive API documentation using Swagger UI
+- Try-it-out functionality for testing endpoints
+- Full OpenAPI specification rendering
+- Example requests and responses
+
+The OpenAPI specification is available at `/docs/openapi.yaml`.
+
+**Access the explorer:**
+```
+http://localhost:5000/docs/explorer.html
+http://localhost:5000/docs/openapi.yaml
+```
+
+### Frontend Integration
+
+This API is designed to be consumed by a separate SPA frontend. The API provides:
+- RESTful JSON endpoints for all operations
+- Consistent response formats
+- Execution results with viewer links (for integration with external viewers)
+- Complete OpenAPI specification for frontend code generation
+
+The `viewer_link` in execution responses is provided for SPA integration. Adjust the URL format in your SPA frontend to match your routing structure (e.g., `/runbook/{filename}`).
 
 ## Execution Processing
 - Fail fast validate.
@@ -149,9 +201,13 @@ RUN apt-get update && \
 ├── Pipfile                  # Python dependencies (pipenv)
 ├── README.md                # This file
 ├── RUNBOOK.md               # Runbook format specification
+├── docs/
+│   ├── explorer.html        # API Explorer (Swagger UI)
+│   └── openapi.yaml         # OpenAPI specification
 ├── src/
 │   ├── command.py          # The runbook command implementation
-│   └── runbook              # Wrapper script for simplified usage
+│   ├── runbook              # Wrapper script for simplified usage
+│   └── server.py            # Flask API server module
 └── test/
     └── test_command.py      # Unit tests for the runner
 ```

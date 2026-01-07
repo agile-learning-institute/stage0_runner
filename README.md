@@ -58,6 +58,10 @@ For runbooks that need additional tools (like Docker CLI or GitHub CLI), you can
 
 **Dockerfile.extended** - Extends the base image with Docker CLI and GitHub CLI
 
+**Dockerfile.with-runbooks** - Packages a collection of verified runbooks into the container
+
+**Dockerfile.extended-with-runbooks** - Combines both: tools (Docker CLI, GitHub CLI) and packaged runbooks
+
 To use the extended image:
 ```sh
 # Build the extended image
@@ -73,6 +77,38 @@ docker run --rm \
     runbook execute --runbook ./my-runbook.md
 ```
 
+To package runbooks into a container:
+```sh
+# Create a runbooks directory with your verified runbooks
+mkdir -p runbooks
+cp my-runbook1.md my-runbook2.md runbooks/
+
+# Build the image with runbooks
+docker build -f Dockerfile.with-runbooks -t my-runbooks:latest .
+
+# Execute a packaged runbook
+docker run --rm \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -e GITHUB_TOKEN=$GITHUB_TOKEN \
+    my-runbooks:latest \
+    runbook execute --runbook /opt/stage0/runbooks/my-runbook1.md
+```
+
+You can combine approaches - extend the extended image and add runbooks:
+```dockerfile
+FROM ghcr.io/agile-learning-institute/stage0_runner:extended
+
+# Copy your runbooks
+RUN mkdir -p /opt/stage0/runbooks
+COPY runbooks/ /opt/stage0/runbooks/
+WORKDIR /opt/stage0/runbooks
+
+# Add any additional tools if needed
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends your-tool && \
+    rm -rf /var/lib/apt/lists/*
+```
+
 You can create your own extended Dockerfile based on your specific needs:
 ```dockerfile
 FROM ghcr.io/agile-learning-institute/stage0_runner:latest
@@ -86,8 +122,10 @@ RUN apt-get update && \
 ## Project Structure
 ```
 .
-├── Dockerfile               # Base Docker configuration (minimal)
-├── Dockerfile.extended      # Extended image with Docker CLI and GitHub CLI
+├── Dockerfile                      # Base Docker configuration (minimal)
+├── Dockerfile.extended             # Extended image with Docker CLI and GitHub CLI
+├── Dockerfile.with-runbooks        # Image with packaged runbooks collection
+├── Dockerfile.extended-with-runbooks # Combined: tools + runbooks
 ├── Makefile                 # Make targets for container operations
 ├── Pipfile                  # Python dependencies (pipenv)
 ├── README.md                # This file

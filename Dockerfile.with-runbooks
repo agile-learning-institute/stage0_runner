@@ -1,0 +1,26 @@
+# Stage0 runner image with packaged runbooks
+# Extends the base image and includes a collection of verified runbooks
+# 
+# Usage:
+#   docker build -f Dockerfile.with-runbooks -t my-runbooks:latest .
+#   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+#     my-runbooks:latest runbook execute --runbook /opt/stage0/runbooks/MyRunbook.md
+#
+# To include Docker CLI and GitHub CLI, extend from Dockerfile.extended instead:
+#   FROM ghcr.io/agile-learning-institute/stage0_runner:extended
+
+FROM ghcr.io/agile-learning-institute/stage0_runner:latest
+
+# Create directory for runbooks
+RUN mkdir -p /opt/stage0/runbooks
+
+# Copy runbooks folder into the container
+# Assumes runbooks are in ./runbooks/ relative to build context
+COPY runbooks/ /opt/stage0/runbooks/
+
+# Set working directory to runbooks location for convenience
+WORKDIR /opt/stage0/runbooks
+
+# Note: You can extend this further to add Docker CLI, GitHub CLI, etc.
+# by changing the FROM line to use Dockerfile.extended as the base
+

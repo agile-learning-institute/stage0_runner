@@ -54,3 +54,84 @@ SimpleRunbook completed successfully
 ```
 
 ```
+
+## 2026-01-07t16:37:58.535
+Completed: 2026-01-07t16:37:58.542
+Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: test_execution_value
+Current directory: /Users/mikestorey/source/agile-learning-institute/stageZero/stage0_runner/samples/runbooks
+Listing files:
+total 40
+drwxr-xr-x@ 7 mikestorey  staff   224 Jan  7 16:37 .
+drwxr-xr-x@ 6 mikestorey  staff   192 Jan  7 16:34 ..
+-rw-r--r--@ 1 mikestorey  staff   122 Jan  7 14:07 CreatePackage.dockerfile
+-rw-r--r--@ 1 mikestorey  staff   805 Jan  7 14:13 CreatePackage.md
+-rw-r--r--@ 1 mikestorey  staff   277 Jan  7 15:18 Runbook.md
+-rw-r--r--@ 1 mikestorey  staff  1381 Jan  7 16:35 SimpleRunbook.md
+-rwxr-xr-x@ 1 mikestorey  staff   195 Jan  7 16:37 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```
+
+## 2026-01-07t16:39:21.622
+Completed: 2026-01-07t16:39:21.631
+Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: test_execution_value
+Current directory: /Users/mikestorey/source/agile-learning-institute/stageZero/stage0_runner/samples/runbooks
+Listing files:
+total 40
+drwxr-xr-x@ 7 mikestorey  staff   224 Jan  7 16:39 .
+drwxr-xr-x@ 6 mikestorey  staff   192 Jan  7 16:34 ..
+-rw-r--r--@ 1 mikestorey  staff   122 Jan  7 14:07 CreatePackage.dockerfile
+-rw-r--r--@ 1 mikestorey  staff   805 Jan  7 14:13 CreatePackage.md
+-rw-r--r--@ 1 mikestorey  staff   277 Jan  7 15:18 Runbook.md
+-rw-r--r--@ 1 mikestorey  staff  2177 Jan  7 16:37 SimpleRunbook.md
+-rwxr-xr-x  1 mikestorey  staff   195 Jan  7 16:39 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```
+
+## 2026-01-07t16:40:05.926
+Completed: 2026-01-07t16:40:05.933
+Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: test_execution_value
+Current directory: /Users/mikestorey/source/agile-learning-institute/stageZero/stage0_runner/samples/runbooks
+Listing files:
+total 40
+drwxr-xr-x@ 7 mikestorey  staff   224 Jan  7 16:40 .
+drwxr-xr-x@ 6 mikestorey  staff   192 Jan  7 16:34 ..
+-rw-r--r--@ 1 mikestorey  staff   122 Jan  7 14:07 CreatePackage.dockerfile
+-rw-r--r--@ 1 mikestorey  staff   805 Jan  7 14:13 CreatePackage.md
+-rw-r--r--@ 1 mikestorey  staff   277 Jan  7 15:18 Runbook.md
+-rw-r--r--@ 1 mikestorey  staff  2973 Jan  7 16:39 SimpleRunbook.md
+-rwxr-xr-x@ 1 mikestorey  staff   195 Jan  7 16:40 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```

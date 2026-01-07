@@ -1,6 +1,9 @@
 # Stage0 Runbook Runner
 
-This repository contains the `stage0_runner` utility which is used to execute Runbooks. A runbook is a markdown file, with some specific layout requirements, see [RUNBOOK.md](./RUNBOOK.md) for details about, and an empty template [Runbook.md](./test/runbooks/Runbook.md), and a [Simple Example](./test/runbooks/SimpleRunbook.md) runbook for examples.
+This repository contains the `stage0_runner` utility which is used to execute Runbooks. A Runbook is a markdown file that describes a (automated) task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./test/runbooks/Runbook.md) runbook, and a [Simple Example](./test/runbooks/SimpleRunbook.md) runbook. 
+
+## Quick Start
+See the [Makefile](./Makefile) for examples of using the utility container to validate or execute a Runbook.
 
 ## Contributing Prerequisites
 - Python 3.12+
@@ -47,7 +50,8 @@ Validation confirms the runbook is well formed and all runtime dependencies are 
 - Append execution information onto Runbook. 
 - Remove temp.zsh
 
-## Extending the Base Image
+## SRE Guidance
+You can extend the Base Image to create a custom runbook runner container that includes additional script prerequisites such as a vendor CLI (GitHub, AWS, ...). You can even package a set of "approved" RunBooks with that container. 
 
 The base `stage0_runner` image is kept minimal and includes only:
 - Python 3.12 and pipenv

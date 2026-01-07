@@ -23,6 +23,9 @@ RUNBOOK=./samples/runbooks/SimpleRunbook.md make execute
 # Install dependencies
 pipenv install
 
+# Run tests
+pipenv run test
+
 # Execute the runbook locally
 export RUNBOOK=./samples/runbooks/SimpleRunbook.md 
 pipenv run execute

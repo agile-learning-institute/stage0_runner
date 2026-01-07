@@ -255,16 +255,24 @@ class RunbookRunner:
         timestamp = start_time.strftime('%Y-%m-%dt%H:%M:%S.%f')[:-3]  # Remove last 3 digits of microseconds
         completed = end_time.strftime('%Y-%m-%dt%H:%M:%S.%f')[:-3]
         
+        # Format stdout and stderr in code blocks
+        stdout_content = result.stdout if result.stdout else ""
+        stderr_content = result.stderr if result.stderr else ""
+        
         history_entry = f"""
 ## {timestamp}
 Completed: {completed}
 Return Code: {result.returncode}
 
 ### stdout
-{result.stdout}
+```
+{stdout_content}
+```
 
 ### stderr
-{result.stderr}
+```
+{stderr_content}
+```
 """
         
         # Append to file

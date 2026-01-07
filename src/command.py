@@ -292,7 +292,7 @@ def main():
     )
     parser.add_argument(
         '--runbook',
-        default=os.environ.get('RUNBOOK'),
+        default=os.environ.get('RUNBOOK', './samples/runbooks/SimpleRunbook.md'),
         help='Path to runbook file (or set RUNBOOK environment variable)'
     )
     

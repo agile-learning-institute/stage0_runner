@@ -312,6 +312,8 @@ def main():
         if runner.warnings:
             for warning in runner.warnings:
                 print(f"WARNING: {warning}", file=sys.stderr)
+        if success:
+            print(f"✓ Runbook validation passed: {args.runbook}", file=sys.stdout)
         sys.exit(0 if success else 1)
     elif args.action == 'execute':
         return_code = runner.execute()

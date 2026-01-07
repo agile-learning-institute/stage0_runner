@@ -40,7 +40,7 @@ make container
 ```
 
 ### Validation Processing:
-Validation confirms the runbook is well formed and all runtime dependencies are met. Validation is not fail fast, and provides helpful errors that make it easy to fix problems. Validation goes beyond just validating that the file is well formed, it also validates that execution requirements are met. 
+Validation confirms the runbook is well formed and all runtime dependencies are met. **Validation does not modify the runbook** - it only checks validity. Validation is not fail fast, and provides helpful errors that make it easy to fix problems. Validation goes beyond just validating that the file is well formed, it also validates that execution requirements are met. 
 - Verify that the Runbook file exists
 - Verify the Environment yaml exists
 - Verify that the Env Vars listed exist
@@ -48,6 +48,8 @@ Validation confirms the runbook is well formed and all runtime dependencies are 
 - Verify that the required files / folders exist
 - Verify that the runbook has the required sh code block
 - Verify that the runbook has a # History Header
+
+On success, validation prints a success message and exits with code 0. On failure, it prints all errors and warnings and exits with code 1.
 
 ## Execution Processing
 - Fail fast validate.

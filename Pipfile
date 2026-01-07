@@ -8,8 +8,8 @@ name = "pypi"
 [dev-packages]
 
 [scripts]
-validate = "python src/command.py validate --runbook ${RUNBOOK:-./test/runbooks/SimpleRunbook.md}"
-execute = "python src/command.py execute --runbook ${RUNBOOK:-./test/runbooks/SimpleRunbook.md}"
+validate = "python src/command.py validate --runbook ${RUNBOOK:-./samples/runbooks/SimpleRunbook.md}"
+execute = "python src/command.py execute --runbook ${RUNBOOK:-./samples/runbooks/SimpleRunbook.md}"
 
 [requires]
 python_version = "3.12"

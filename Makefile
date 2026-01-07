@@ -1,7 +1,7 @@
 .PHONY: validate execute container
 
 # Default runbook path
-RUNBOOK ?= ./test/runbooks/SimpleRunbook.md
+RUNBOOK ?= ./samples/runbooks/SimpleRunbook.md
 
 # Validate runbook using the deployment container
 validate:

@@ -16,7 +16,7 @@ from command import RunbookRunner
 
 def test_load_valid_runbook():
     """Test loading a valid runbook."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     assert runner.load_runbook(), "Should load valid runbook"
     assert runner.runbook_name == "SimpleRunbook", "Should extract correct runbook name"
@@ -25,7 +25,7 @@ def test_load_valid_runbook():
 
 def test_validate_simple_runbook():
     """Test validation of SimpleRunbook."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     
     # Set required environment variable
@@ -43,7 +43,7 @@ def test_validate_simple_runbook():
 
 def test_validate_missing_env_var():
     """Test validation fails when required env var is missing."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     
     # Ensure TEST_VAR is not set
@@ -57,7 +57,7 @@ def test_validate_missing_env_var():
 
 def test_extract_sections():
     """Test extraction of runbook sections."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     runner.load_runbook()
     
@@ -72,7 +72,7 @@ def test_extract_sections():
 
 def test_extract_env_vars():
     """Test extraction of environment variables from YAML."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     runner.load_runbook()
     
@@ -84,7 +84,7 @@ def test_extract_env_vars():
 
 def test_execute_simple_runbook():
     """Test execution of SimpleRunbook."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     runner = RunbookRunner(str(runbook_path))
     
     # Set required environment variable
@@ -109,7 +109,7 @@ def test_execute_simple_runbook():
 
 def test_validate_create_package_runbook():
     """Test validation of CreatePackage runbook."""
-    runbook_path = Path(__file__).parent / 'runbooks' / 'CreatePackage.md'
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'CreatePackage.md'
     runner = RunbookRunner(str(runbook_path))
     
     # Set required environment variable

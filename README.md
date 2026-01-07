@@ -7,10 +7,10 @@ A Runbook is a markdown file that describes a (automated) task. You can create a
 
 ```sh
 # Validate runbook using the containerized utility
-RUNBOOK=./samples/runbooks/SimpleRunbook.md make validate
+RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make validate
 
 # Execute runbook using the containerized utility
-RUNBOOK=./samples/runbooks/SimpleRunbook.md make execute
+RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make execute
 ```
 
 ## Contributing Prerequisites
@@ -27,11 +27,13 @@ pipenv install
 pipenv run test
 
 # Execute the runbook locally
-export RUNBOOK=./samples/runbooks/SimpleRunbook.md 
+export RUNBOOK=./samples/runbooks/SimpleRunbook.md
+export TEST_VAR=test_value
 pipenv run execute
 
 # Validate the runbook locally
 export RUNBOOK=./samples/runbooks/SimpleRunbook.md
+export TEST_VAR=test_value
 pipenv run validate
 
 # Build the deployment container

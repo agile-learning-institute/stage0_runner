@@ -1,7 +1,7 @@
 .PHONY: validate execute container
 
 # Default runbook path
-RUNBOOK ?= ./test/runbooks/SimpleRunbook.md
+RUNBOOK ?= ./samples/runbooks/SimpleRunbook.md
 
 # Validate runbook using the deployment container
 validate:
@@ -9,6 +9,7 @@ validate:
 		-v $(PWD):/workspace \
 		-w /workspace \
 		-e RUNBOOK=$(RUNBOOK) \
+		$(ENV_VARS) \
 		ghcr.io/agile-learning-institute/stage0_runner:latest \
 		runbook validate --runbook $(RUNBOOK)
 
@@ -18,6 +19,7 @@ execute:
 		-v $(PWD):/workspace \
 		-w /workspace \
 		-e RUNBOOK=$(RUNBOOK) \
+		$(ENV_VARS) \
 		ghcr.io/agile-learning-institute/stage0_runner:latest \
 		runbook execute --runbook $(RUNBOOK)
 

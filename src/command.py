@@ -255,16 +255,24 @@ class RunbookRunner:
         timestamp = start_time.strftime('%Y-%m-%dt%H:%M:%S.%f')[:-3]  # Remove last 3 digits of microseconds
         completed = end_time.strftime('%Y-%m-%dt%H:%M:%S.%f')[:-3]
         
+        # Format stdout and stderr in code blocks
+        stdout_content = result.stdout if result.stdout else ""
+        stderr_content = result.stderr if result.stderr else ""
+        
         history_entry = f"""
 ## {timestamp}
-Completed: {completed}
-Return Code: {result.returncode}
+- Completed: {completed}
+- Return Code: {result.returncode}
 
 ### stdout
-{result.stdout}
+```
+{stdout_content}
+```
 
 ### stderr
-{result.stderr}
+```
+{stderr_content}
+```
 """
         
         # Append to file
@@ -284,7 +292,7 @@ def main():
     )
     parser.add_argument(
         '--runbook',
-        default=os.environ.get('RUNBOOK'),
+        default=os.environ.get('RUNBOOK', './samples/runbooks/SimpleRunbook.md'),
         help='Path to runbook file (or set RUNBOOK environment variable)'
     )
     
@@ -304,6 +312,8 @@ def main():
         if runner.warnings:
             for warning in runner.warnings:
                 print(f"WARNING: {warning}", file=sys.stderr)
+        if success:
+            print(f"✓ Runbook validation passed: {args.runbook}", file=sys.stdout)
         sys.exit(0 if success else 1)
     elif args.action == 'execute':
         return_code = runner.execute()

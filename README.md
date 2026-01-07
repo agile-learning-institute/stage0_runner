@@ -1,6 +1,17 @@
 # Stage0 Runbook Runner
 
-This repository contains the `stage0_runner` utility which is used to execute Runbooks. A runbook is a markdown file, with some specific layout requirements, see [RUNBOOK.md](./RUNBOOK.md) for details about, and an empty template [Runbook.md](./test/runbooks/Runbook.md), and a [Simple Example](./test/runbooks/SimpleRunbook.md) runbook for examples.
+This repository contains the `stage0_runner` utility which is used to execute Runbooks. 
+
+## Quick Start
+A Runbook is a markdown file that describes a (automated) task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./samples/runbooks/Runbook.md) runbook, and a [Simple Example](./samples/runbooks/SimpleRunbook.md) runbook. See the [Makefile](./Makefile) for examples of using the utility container to validate or execute a Runbook.
+
+```sh
+# Validate runbook using the containerized utility
+RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make validate
+
+# Execute runbook using the containerized utility
+RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make execute
+```
 
 ## Contributing Prerequisites
 - Python 3.12+
@@ -12,26 +23,26 @@ This repository contains the `stage0_runner` utility which is used to execute Ru
 # Install dependencies
 pipenv install
 
+# Run tests
+pipenv run test
+
 # Execute the runbook locally
-export RUNBOOK=./test/runbooks/SimpleRunbook.md 
+export RUNBOOK=./samples/runbooks/SimpleRunbook.md
+export TEST_VAR=test_value
 pipenv run execute
 
 # Validate the runbook locally
-export RUNBOOK=./test/runbooks/SimpleRunbook.md
+export RUNBOOK=./samples/runbooks/SimpleRunbook.md
+export TEST_VAR=test_value
 pipenv run validate
 
 # Build the deployment container
 make container
 
-# Validate runbook using the deployment container
-RUNBOOK=./test/runbooks/SimpleRunbook.md make validate
-
-# Execute runbook using the deployment container
-RUNBOOK=./test/runbooks/SimpleRunbook.md make execute
 ```
 
 ### Validation Processing:
-Validation confirms the runbook is well formed and all runtime dependencies are met. Validation is not fail fast, and provides helpful errors that make it easy to fix problems. Validation goes beyond just validating that the file is well formed, it also validates that execution requirements are met. 
+Validation confirms the runbook is well formed and all runtime dependencies are met. **Validation does not modify the runbook** - it only checks validity. Validation is not fail fast, and provides helpful errors that make it easy to fix problems. Validation goes beyond just validating that the file is well formed, it also validates that execution requirements are met. 
 - Verify that the Runbook file exists
 - Verify the Environment yaml exists
 - Verify that the Env Vars listed exist
@@ -40,6 +51,8 @@ Validation confirms the runbook is well formed and all runtime dependencies are 
 - Verify that the runbook has the required sh code block
 - Verify that the runbook has a # History Header
 
+On success, validation prints a success message and exits with code 0. On failure, it prints all errors and warnings and exits with code 1.
+
 ## Execution Processing
 - Fail fast validate.
 - Create temp.zsh with the contents of the code block
@@ -47,7 +60,8 @@ Validation confirms the runbook is well formed and all runtime dependencies are 
 - Append execution information onto Runbook. 
 - Remove temp.zsh
 
-## Extending the Base Image
+## SRE Guidance
+You can extend the Base Image to create a custom runbook container that includes additional script prerequisites such as a vendor CLI (GitHub, AWS, ...). You can even package a set of "approved" RunBooks with that container. 
 
 The base `stage0_runner` image is kept minimal and includes only:
 - Python 3.12 and pipenv
@@ -56,16 +70,16 @@ The base `stage0_runner` image is kept minimal and includes only:
 
 For runbooks that need additional tools (like Docker CLI or GitHub CLI), you can extend the base image. A sample extended Dockerfile is provided:
 
-**Dockerfile.extended** - Extends the base image with Docker CLI and GitHub CLI
+**samples/Dockerfile.extended** - Extends the base image with Docker CLI and GitHub CLI
 
-**Dockerfile.with-runbooks** - Packages a collection of verified runbooks into the container
+**samples/Dockerfile.with-runbooks** - Packages a collection of verified runbooks into the container
 
-**Dockerfile.extended-with-runbooks** - Combines both: tools (Docker CLI, GitHub CLI) and packaged runbooks
+**samples/Dockerfile.extended-with-runbooks** - Combines both: tools (Docker CLI, GitHub CLI) and packaged runbooks
 
 To use the extended image:
 ```sh
 # Build the extended image
-docker build -f Dockerfile.extended -t my-stage0-runner:extended .
+docker build -f samples/Dockerfile.extended -t my-stage0-runner:extended .
 
 # Run with Docker socket mount (for docker commands)
 docker run --rm \
@@ -84,7 +98,7 @@ mkdir -p runbooks
 cp my-runbook1.md my-runbook2.md runbooks/
 
 # Build the image with runbooks
-docker build -f Dockerfile.with-runbooks -t my-runbooks:latest .
+docker build -f samples/Dockerfile.with-runbooks -t my-runbooks:latest .
 
 # Execute a packaged runbook
 docker run --rm \
@@ -123,9 +137,14 @@ RUN apt-get update && \
 ```
 .
 ├── Dockerfile                      # Base Docker configuration (minimal)
-├── Dockerfile.extended             # Extended image with Docker CLI and GitHub CLI
-├── Dockerfile.with-runbooks        # Image with packaged runbooks collection
-├── Dockerfile.extended-with-runbooks # Combined: tools + runbooks
+├── samples/                       # Sample Dockerfiles and example runbooks
+│   ├── Dockerfile.extended        # Extended image with Docker CLI and GitHub CLI
+│   ├── Dockerfile.with-runbooks   # Image with packaged runbooks collection
+│   ├── Dockerfile.extended-with-runbooks # Combined: tools + runbooks
+│   └── runbooks/                  # Example runbooks
+│       ├── SimpleRunbook.md
+│       ├── CreatePackage.md
+│       └── CreatePackage.dockerfile
 ├── Makefile                 # Make targets for container operations
 ├── Pipfile                  # Python dependencies (pipenv)
 ├── README.md                # This file
@@ -134,9 +153,5 @@ RUN apt-get update && \
 │   ├── command.py          # The runbook command implementation
 │   └── runbook              # Wrapper script for simplified usage
 └── test/
-    ├── test_command.py      # Unit tests for the runner
-    └── runbooks/            # Test Runbooks
-        ├── SimpleRunbook.md
-        ├── CreatePackage.md
-        └── CreatePackage.dockerfile
+    └── test_command.py      # Unit tests for the runner
 ```

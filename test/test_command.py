@@ -127,30 +127,9 @@ def test_validate_create_package_runbook():
             del os.environ['GITHUB_TOKEN']
 
 
+# Tests can be run with pytest or the custom runner below
 if __name__ == '__main__':
-    # Simple test runner
-    tests = [
-        test_load_valid_runbook,
-        test_extract_sections,
-        test_extract_env_vars,
-        test_validate_simple_runbook,
-        test_validate_missing_env_var,
-        test_execute_simple_runbook,
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    for test in tests:
-        try:
-            print(f"Running {test.__name__}...")
-            test()
-            print(f"  ✓ {test.__name__} passed")
-            passed += 1
-        except Exception as e:
-            print(f"  ✗ {test.__name__} failed: {e}")
-            failed += 1
-    
-    print(f"\nTests: {passed} passed, {failed} failed")
-    sys.exit(0 if failed == 0 else 1)
+    # Fallback: Simple test runner if pytest is not available
+    import pytest
+    pytest.main([__file__, '-v'])
 

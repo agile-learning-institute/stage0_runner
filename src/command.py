@@ -261,8 +261,8 @@ class RunbookRunner:
         
         history_entry = f"""
 ## {timestamp}
-Completed: {completed}
-Return Code: {result.returncode}
+- Completed: {completed}
+- Return Code: {result.returncode}
 
 ### stdout
 ```

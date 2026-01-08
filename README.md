@@ -1,4 +1,4 @@
-# Stage0 Runbook Runner
+# stage0_runbook_api
 
 This repository contains the `stage0_runbook_api` utility which is used to execute Runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
 

@@ -20,15 +20,12 @@ from flask import Flask
 
 import logging
 
-def create_app(runbooks_dir: str = None):
+def create_app():
     """
     Create and configure Flask application.
     
     This function is used by Gunicorn.
     
-    Args:
-        runbooks_dir: Optional override for runbooks directory. If None, uses config.RUNBOOKS_DIR
-        
     Returns:
         Flask application instance
     """
@@ -38,10 +35,6 @@ def create_app(runbooks_dir: str = None):
     
     logger = logging.getLogger(__name__)
     logger.info("============= Starting Stage0 Runbook API Server ===============")
-    
-    # Use provided runbooks_dir or default from config
-    if runbooks_dir is None:
-        runbooks_dir = config.RUNBOOKS_DIR
     
     # Initialize Flask App
     from prometheus_flask_exporter import PrometheusMetrics
@@ -100,7 +93,7 @@ def create_app(runbooks_dir: str = None):
     
     # Runbook routes
     from src.routes.runbook_routes import create_runbook_routes
-    app.register_blueprint(create_runbook_routes(runbooks_dir), url_prefix='/api/runbooks')
+    app.register_blueprint(create_runbook_routes(config.RUNBOOKS_DIR), url_prefix='/api/runbooks')
     logger.info("  /api/runbooks")
     
     # Shutdown routes

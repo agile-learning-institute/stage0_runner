@@ -257,7 +257,12 @@ For comprehensive production deployment documentation, including deployment opti
 │   │   ├── runbook_routes.py
 │   │   └── shutdown_routes.py
 │   ├── services/                  # Business logic layer
-│   │   └── runbook_service.py     # Runbook operations (merged RunbookRunner)
+│   │   ├── runbook_service.py     # Runbook service (orchestrator)
+│   │   ├── runbook_parser.py      # Markdown parsing
+│   │   ├── runbook_validator.py   # Runbook validation
+│   │   ├── script_executor.py     # Script execution
+│   │   ├── history_manager.py     # History management
+│   │   └── rbac_authorizer.py     # RBAC authorization
 │   └── server.py                  # Flask application factory
 └── test/
     └── test_runbook_service.py    # Unit tests for the service

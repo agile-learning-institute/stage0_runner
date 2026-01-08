@@ -274,6 +274,37 @@ class Config:
             "token": token
         }    
 
+    def get_default(self, name: str):
+        """
+        Get the default value for a configuration key.
+        
+        Args:
+            name: The name of the configuration key
+            
+        Returns:
+            The default value for the key, or None if not found
+        """
+        # Check config_ints
+        if name in self.config_ints:
+            return int(self.config_ints[name])
+        # Check config_strings
+        if name in self.config_strings:
+            return self.config_strings[name]
+        # Check config_booleans
+        if name in self.config_booleans:
+            return self.config_booleans[name].lower() == "true"
+        # Check config_string_secrets
+        if name in self.config_string_secrets:
+            return self.config_string_secrets[name]
+        # Check hard-coded defaults
+        if name == "JWT_ALGORITHM":
+            return "HS256"
+        if name == "JWT_ISSUER":
+            return "dev-idp"
+        if name == "JWT_AUDIENCE":
+            return "dev-api"
+        return None
+
     @staticmethod
     def get_instance():
         """

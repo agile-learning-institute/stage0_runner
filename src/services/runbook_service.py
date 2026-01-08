@@ -366,14 +366,16 @@ class RunbookService:
         timeout_seconds = config.SCRIPT_TIMEOUT_SECONDS
         max_output_bytes = config.MAX_OUTPUT_SIZE_BYTES
         
-        # Validate resource limits
+        # Validate resource limits - use Config defaults if invalid
         if timeout_seconds <= 0:
-            logger.warning(f"Invalid timeout value {timeout_seconds}, using default 600 seconds")
-            timeout_seconds = 600
+            default_timeout = config.get_default("SCRIPT_TIMEOUT_SECONDS")
+            logger.warning(f"Invalid timeout value {timeout_seconds}, using Config default: {default_timeout}")
+            timeout_seconds = default_timeout
         
         if max_output_bytes <= 0:
-            logger.warning(f"Invalid max_output_bytes value {max_output_bytes}, using default 10MB")
-            max_output_bytes = 10 * 1024 * 1024
+            default_max_output = config.get_default("MAX_OUTPUT_SIZE_BYTES")
+            logger.warning(f"Invalid max_output_bytes value {max_output_bytes}, using Config default: {default_max_output}")
+            max_output_bytes = default_max_output
         
         # Validate and sanitize environment variables
         original_env = {}

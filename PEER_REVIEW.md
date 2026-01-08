@@ -631,10 +631,10 @@ No limit on request body size. Large JSON payloads could consume excessive memor
    - Document production requirements - **Detailed production security requirements including JWT configuration, dev-login disabling, rate limiting, network security, container security, and monitoring**
    - List known limitations - **Documented known limitations: script execution security (no sandboxing), concurrent execution race conditions, development mode security, and threat model**
 
-4. **DOC-002: Deployment Guide** (1-2 days)
-   - Write production guide
-   - Document configuration
-   - Include monitoring setup
+4. **DOC-002: Deployment Guide** (**Completed by Cursor**)
+   - Write production guide - **Comprehensive production deployment guide added with 3 deployment options: Docker Compose (single/multi-instance) and Kubernetes**
+   - Document configuration - **Complete configuration reference with required, recommended, and multi-instance settings documented**
+   - Include monitoring setup - **Detailed monitoring setup: Prometheus metrics, Grafana dashboards, alerting rules, log aggregation, and health checks**
 
 ---
 

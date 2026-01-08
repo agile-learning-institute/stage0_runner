@@ -72,8 +72,11 @@ curl -X POST "http://localhost:8083/api/shutdown" \
 # Install dependencies
 pipenv install
 
-# Run tests
+# Run unit and integration tests (uses Flask test client, no running API required)
 pipenv run test
+
+# Run end-to-end (e2e) tests (comprehensive workflow tests)
+pipenv run e2e
 
 # Start the API server (for development)
 make api
@@ -81,6 +84,10 @@ make api
 # Build the deployment container
 make container
 ```
+
+**Test Commands:**
+- `pipenv run test` - Runs unit tests (`test_runbook_service.py`) and integration tests (`test_integration.py`). These tests use Flask's test client and do not require a running API server.
+- `pipenv run e2e` - Runs end-to-end tests (`test_e2e.py`) that verify complete workflows from API calls through runbook execution, including authentication, authorization, error handling, and concurrent scenarios.
 
 ## API Server
 

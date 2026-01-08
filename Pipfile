@@ -7,6 +7,8 @@ name = "pypi"
 flask = "*"
 gunicorn = "*"
 gevent = "*"
+pyjwt = "*"
+prometheus-flask-exporter = "*"
 
 [dev-packages]
 pytest = "*"

@@ -100,6 +100,33 @@ class RunbookRunner:
             return env_vars if env_vars else {}  # Return empty dict if no vars found
         return None
     
+    def extract_required_claims(self) -> Optional[Dict[str, List[str]]]:
+        """Extract required claims from Required Claims section."""
+        claims_section = self.extract_section('Required Claims')
+        if not claims_section:
+            return None
+        
+        # Extract YAML block
+        yaml_block = self.extract_yaml_block(claims_section)
+        if not yaml_block:
+            return None
+        
+        # Parse claims - convert values to lists if they're strings
+        required_claims = {}
+        for key, value in yaml_block.items():
+            if isinstance(value, str):
+                # If value contains commas, split into list
+                if ',' in value:
+                    required_claims[key] = [v.strip() for v in value.split(',')]
+                else:
+                    required_claims[key] = [value.strip()]
+            elif isinstance(value, list):
+                required_claims[key] = value
+            else:
+                required_claims[key] = [str(value)]
+        
+        return required_claims if required_claims else None
+    
     def extract_file_requirements(self, section_content: str) -> Dict[str, List[str]]:
         """Extract file system requirements from YAML block."""
         requirements = {'Input': [], 'Output': []}
@@ -147,6 +174,7 @@ class RunbookRunner:
             'Script',
             'History'
         ]
+        # Required Claims is optional - if present, it must be valid
         
         for section in required_sections:
             section_content = self.extract_section(section)
@@ -272,6 +300,26 @@ class RunbookRunner:
 ### stderr
 ```
 {stderr_content}
+```
+"""
+        
+        # Append to file
+        with open(self.runbook_path, 'a', encoding='utf-8') as f:
+            f.write(history_entry)
+    
+    def append_rbac_failure_history(self, error_message: str, user_id: str, operation: str):
+        """Append RBAC failure to the runbook history section."""
+        timestamp = datetime.now().strftime('%Y-%m-%dt%H:%M:%S.%f')[:-3]
+        
+        history_entry = f"""
+## {timestamp}
+- Operation: {operation}
+- Return Code: 403
+- RBAC Failure: Access denied for user {user_id}
+
+### error
+```
+{error_message}
 ```
 """
         

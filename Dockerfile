@@ -49,10 +49,6 @@ COPY --from=build /app/BUILT_AT ./
 # Copy documentation files for API explorer
 COPY docs/ ./docs/
 
-# Install runbook wrapper script to /usr/local/bin
-COPY src/runbook /usr/local/bin/runbook
-RUN chmod +x /usr/local/bin/runbook
-
 # Set Environment Variables
 ENV PYTHONPATH=/opt/stage0/runner
 ENV PYTHONDONTWRITEBYTECODE=1

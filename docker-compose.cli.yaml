@@ -1,0 +1,22 @@
+services:
+  api:
+    image: ghcr.io/agile-learning-institute/stage0_runbook_api:latest
+    container_name: stage0_runbook_api_cli
+    restart: no
+    ports:
+      - "8083:8083"
+    environment:
+      API_PORT: 8083
+      RUNBOOKS_DIR: /workspace/runbooks
+      ENABLE_LOGIN: "true"
+      LOGGING_LEVEL: "INFO"
+    volumes:
+      - ./samples/runbooks:/workspace/runbooks:ro
+    working_dir: /workspace/runbooks
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/metrics')"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+      start_period: 2s
+

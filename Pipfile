@@ -14,9 +14,6 @@ prometheus-flask-exporter = "*"
 pytest = "*"
 
 [scripts]
-validate = "python src/command.py validate"
-execute = "python src/command.py execute"
-serve = "python src/command.py serve"
 test = "pytest test/"
 
 [requires]

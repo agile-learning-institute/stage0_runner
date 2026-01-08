@@ -1,6 +1,0 @@
-#!/bin/sh
-# Wrapper script for stage0_runner
-# Allows simple commands like: runbook validate --runbook <path>
-
-exec python /opt/stage0/runner/src/command.py "$@"
-

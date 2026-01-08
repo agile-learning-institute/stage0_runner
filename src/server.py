@@ -24,7 +24,7 @@ def create_app(runbooks_dir: str = None):
     """
     Create and configure Flask application.
     
-    This function is used by command.py for the serve action and by Gunicorn.
+    This function is used by Gunicorn.
     
     Args:
         runbooks_dir: Optional override for runbooks directory. If None, uses config.RUNBOOKS_DIR
@@ -76,6 +76,11 @@ def create_app(runbooks_dir: str = None):
     from src.routes.runbook_routes import create_runbook_routes
     app.register_blueprint(create_runbook_routes(runbooks_dir), url_prefix='/api/runbooks')
     logger.info("  /api/runbooks")
+    
+    # Shutdown routes
+    from src.routes.shutdown_routes import create_shutdown_routes
+    app.register_blueprint(create_shutdown_routes(), url_prefix='/api/shutdown')
+    logger.info("  /api/shutdown")
     
     logger.info("  /metrics")
     logger.info("Routes Registered")

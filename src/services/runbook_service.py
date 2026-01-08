@@ -2,15 +2,18 @@
 Runbook service for business logic and RBAC.
 
 Handles RBAC checks and runbook operations (validate/execute).
+Includes RunbookRunner functionality merged from command.py.
 """
 import os
 import re
+import subprocess
+import json
 from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone
 
-from ..command import RunbookRunner
 from ..flask_utils.exceptions import HTTPNotFound, HTTPForbidden, HTTPInternalServerError
+from ..config.config import Config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +28,7 @@ class RunbookService:
     - Runbook validation
     - Runbook execution
     - Business logic for Runbook domain
+    - Runbook parsing and execution (merged from RunbookRunner)
     """
     
     def __init__(self, runbooks_dir: str):
@@ -41,6 +45,437 @@ class RunbookService:
         # Security: prevent directory traversal
         safe_filename = os.path.basename(filename)
         return self.runbooks_dir / safe_filename
+    
+    def _load_runbook(self, runbook_path: Path) -> Tuple[Optional[str], Optional[str], List[str], List[str]]:
+        """
+        Load a runbook file and extract basic information.
+        
+        Args:
+            runbook_path: Path to the runbook file
+            
+        Returns:
+            tuple: (content, name, errors, warnings)
+        """
+        errors = []
+        warnings = []
+        
+        if not runbook_path.exists():
+            errors.append(f"Runbook file does not exist: {runbook_path}")
+            return None, None, errors, warnings
+        
+        try:
+            with open(runbook_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract runbook name from first H1
+            match = re.match(r'^#\s+(.+)$', content, re.MULTILINE)
+            if match:
+                name = match.group(1).strip()
+                # Verify name matches filename
+                expected_name = runbook_path.stem
+                if name != expected_name:
+                    warnings.append(
+                        f"Runbook name '{name}' does not match filename '{expected_name}'"
+                    )
+            else:
+                errors.append("Runbook must start with an H1 header containing the runbook name")
+                return content, None, errors, warnings
+            
+            return content, name, errors, warnings
+        except Exception as e:
+            errors.append(f"Error reading runbook file: {e}")
+            return None, None, errors, warnings
+    
+    def _extract_section(self, content: str, section_name: str) -> Optional[str]:
+        """Extract content of a specific H1 section."""
+        if not content:
+            return None
+            
+        # Find the section header
+        header_pattern = rf'^#\s+{re.escape(section_name)}\s*$'
+        header_match = re.search(header_pattern, content, re.MULTILINE)
+        if not header_match:
+            return None
+        
+        # Get the position after the header
+        start_pos = header_match.end()
+        
+        # Find the next H1 header or end of file
+        next_header_pattern = r'^#\s+'
+        next_match = re.search(next_header_pattern, content[start_pos:], re.MULTILINE)
+        
+        if next_match:
+            # Content ends at the next header
+            end_pos = start_pos + next_match.start()
+            section_content = content[start_pos:end_pos].strip()
+        else:
+            # This is the last section, content goes to end of file
+            section_content = content[start_pos:].strip()
+        
+        return section_content
+    
+    def _extract_yaml_block(self, section_content: str) -> Optional[Dict[str, str]]:
+        """Extract YAML from a code block in section content."""
+        if not section_content:
+            return None
+        pattern = r'```yaml\s*\n(.*?)```'
+        match = re.search(pattern, section_content, re.DOTALL)
+        if match:
+            yaml_content = match.group(1).strip()
+            # Simple YAML parsing for key: value pairs
+            env_vars = {}
+            for line in yaml_content.split('\n'):
+                line = line.strip()
+                if ':' in line and not line.startswith('#'):
+                    parts = line.split(':', 1)
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        value = parts[1].strip()
+                        env_vars[key] = value
+            return env_vars if env_vars else {}  # Return empty dict if no vars found
+        return None
+    
+    def _extract_required_claims(self, content: str) -> Optional[Dict[str, List[str]]]:
+        """Extract required claims from Required Claims section."""
+        claims_section = self._extract_section(content, 'Required Claims')
+        if not claims_section:
+            return None
+        
+        # Extract YAML block
+        yaml_block = self._extract_yaml_block(claims_section)
+        if not yaml_block:
+            return None
+        
+        # Parse claims - convert values to lists if they're strings
+        required_claims = {}
+        for key, value in yaml_block.items():
+            if isinstance(value, str):
+                # If value contains commas, split into list
+                if ',' in value:
+                    required_claims[key] = [v.strip() for v in value.split(',')]
+                else:
+                    required_claims[key] = [value.strip()]
+            elif isinstance(value, list):
+                required_claims[key] = value
+            else:
+                required_claims[key] = [str(value)]
+        
+        return required_claims if required_claims else None
+    
+    def _extract_file_requirements(self, section_content: str) -> Dict[str, List[str]]:
+        """Extract file system requirements from YAML block."""
+        requirements = {'Input': [], 'Output': []}
+        pattern = r'```yaml\s*\n(.*?)```'
+        match = re.search(pattern, section_content, re.DOTALL)
+        if match:
+            yaml_content = match.group(1).strip()
+            current_section = None
+            for line in yaml_content.split('\n'):
+                line = line.strip()
+                if line.startswith('Input:'):
+                    current_section = 'Input'
+                elif line.startswith('Output:'):
+                    current_section = 'Output'
+                elif line.startswith('-') and current_section:
+                    file_path = line[1:].strip()
+                    requirements[current_section].append(file_path)
+        return requirements
+    
+    def _extract_script(self, content: str) -> Optional[str]:
+        """Extract the shell script from the Script section."""
+        script_section = self._extract_section(content, 'Script')
+        if not script_section:
+            return None
+        
+        pattern = r'```sh\s*\n(.*?)```'
+        match = re.search(pattern, script_section, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return None
+    
+    def _validate_runbook_content(self, runbook_path: Path, content: str) -> Tuple[bool, List[str], List[str]]:
+        """
+        Validate the runbook structure and requirements.
+        
+        Returns:
+            tuple: (success, errors, warnings)
+        """
+        errors = []
+        warnings = []
+        
+        if not content:
+            errors.append("Runbook content is empty")
+            return False, errors, warnings
+        
+        # Check required sections
+        required_sections = [
+            'Documentation',
+            'Environment Requirements',
+            'File System Requirements',
+            'Script',
+            'History'
+        ]
+        # Required Claims is optional - if present, it must be valid
+        
+        for section in required_sections:
+            section_content = self._extract_section(content, section)
+            if section_content is None:
+                errors.append(f"Missing required section: {section}")
+            # History section can be empty, others cannot
+            elif section != 'History' and not section_content:
+                errors.append(f"Section '{section}' is empty")
+        
+        # Validate Environment Requirements
+        env_section = self._extract_section(content, 'Environment Requirements')
+        if env_section:
+            env_vars = self._extract_yaml_block(env_section)
+            if env_vars is not None:
+                for var_name in env_vars.keys():
+                    if var_name not in os.environ:
+                        errors.append(f"Required environment variable not set: {var_name}")
+            else:
+                errors.append("Environment Requirements section must contain a YAML code block")
+        else:
+            errors.append("Missing Environment Requirements section")
+        
+        # Validate File System Requirements
+        fs_section = self._extract_section(content, 'File System Requirements')
+        if fs_section:
+            requirements = self._extract_file_requirements(fs_section)
+            for file_path in requirements.get('Input', []):
+                # Resolve relative to runbook directory
+                full_path = (runbook_path.parent / file_path).resolve()
+                if not full_path.exists():
+                    errors.append(f"Required input file does not exist: {file_path}")
+            
+            # Check output directories exist or can be created
+            for dir_path in requirements.get('Output', []):
+                path = Path(dir_path)
+                if not path.exists():
+                    # Check if parent exists and we can create it
+                    if not path.parent.exists():
+                        errors.append(f"Output directory parent does not exist: {dir_path}")
+        else:
+            errors.append("File System Requirements section must contain a YAML code block")
+        
+        # Validate Script section
+        script = self._extract_script(content)
+        if not script:
+            errors.append("Script section must contain a sh code block")
+        
+        # Validate History section exists (empty content is valid)
+        history_section = self._extract_section(content, 'History')
+        if history_section is None:
+            # Check if History header exists at all
+            if not re.search(r'^#\s+History\s*$', content, re.MULTILINE):
+                errors.append("Missing required section: History")
+            # If header exists but extract_section returned None, that's also an error
+            else:
+                errors.append("History section found but could not extract content")
+        # History section can be empty (no history entries yet)
+        
+        return len(errors) == 0, errors, warnings
+    
+    def _execute_script(self, runbook_path: Path, content: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
+        """
+        Execute the runbook script.
+        
+        Returns:
+            tuple: (return_code, stdout, stderr)
+        """
+        # Set environment variables
+        original_env = {}
+        if env_vars:
+            for key, value in env_vars.items():
+                original_env[key] = os.environ.get(key)
+                os.environ[key] = value
+        
+        try:
+            # Validate first
+            success, errors, warnings = self._validate_runbook_content(runbook_path, content)
+            if not success:
+                return 1, "", "\n".join(errors)
+            
+            script = self._extract_script(content)
+            if not script:
+                return 1, "", "ERROR: Could not extract script from runbook"
+            
+            # Create temporary script file
+            temp_script = runbook_path.parent / 'temp.zsh'
+            try:
+                with open(temp_script, 'w', encoding='utf-8') as f:
+                    f.write(script)
+                os.chmod(temp_script, 0o755)
+                
+                # Execute the script
+                result = subprocess.run(
+                    ['/bin/zsh', str(temp_script)],
+                    capture_output=True,
+                    text=True,
+                    cwd=runbook_path.parent
+                )
+                
+                return result.returncode, result.stdout or "", result.stderr or ""
+                
+            except Exception as e:
+                return 1, "", f"ERROR: Failed to execute script: {e}"
+            finally:
+                # Clean up temp script
+                if temp_script.exists():
+                    temp_script.unlink()
+        finally:
+            # Restore original environment variables
+            for key, value in original_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+    
+    def _append_history(self, runbook_path: Path, start_time: datetime, finish_time: datetime, 
+                       return_code: int, operation: str, stdout: str, stderr: str, 
+                       token: Dict, breadcrumb: Dict, config_items: List[Dict], 
+                       errors: List[str] = None, warnings: List[str] = None):
+        """
+        Append execution history to the runbook file as minified JSON.
+        
+        Args:
+            runbook_path: Path to the runbook file
+            start_time: Start timestamp
+            finish_time: Finish timestamp
+            return_code: Return code from execution
+            operation: Operation name (e.g., 'execute', 'validate')
+            stdout: Standard output
+            stderr: Standard error
+            token: Token dictionary with roles
+            breadcrumb: Breadcrumb dictionary
+            config_items: Config items from Config singleton
+            errors: List of errors (optional)
+            warnings: List of warnings (optional)
+        """
+        # Format timestamps as ISO 8601 with Z timezone
+        start_timestamp = start_time.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        finish_timestamp = finish_time.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        
+        # Add roles to breadcrumb (preserve existing breadcrumb structure)
+        at_time_value = breadcrumb.get('at_time', '')
+        if hasattr(at_time_value, 'isoformat'):
+            at_time_str = at_time_value.isoformat()
+        elif isinstance(at_time_value, str):
+            at_time_str = at_time_value
+        else:
+            at_time_str = str(at_time_value)
+        
+        breadcrumb_with_roles = {
+            **breadcrumb,
+            "roles": token.get('roles', []),
+            "at_time": at_time_str
+        }
+        
+        # Build history JSON
+        history_json = {
+            "start_timestamp": start_timestamp,
+            "finish_timestamp": finish_timestamp,
+            "return_code": return_code,
+            "operation": operation,
+            "breadcrumb": breadcrumb_with_roles,
+            "config_items": config_items,
+            "stdout": stdout,
+            "stderr": stderr,
+            "errors": errors or [],
+            "warnings": warnings or []
+        }
+        
+        # Minify JSON (single line, no whitespace)
+        minified_json = json.dumps(history_json, separators=(',', ':'))
+        
+        # Log the history JSON
+        logger.log(logging.INFO, minified_json)
+        
+        # Append to file
+        with open(runbook_path, 'a', encoding='utf-8') as f:
+            f.write('\n' + minified_json)
+    
+    def _append_rbac_failure_history(self, runbook_path: Path, error_message: str, 
+                                    user_id: str, operation: str, token: Dict, 
+                                    breadcrumb: Dict, config_items: List[Dict]):
+        """Append RBAC failure to the runbook history section as minified JSON."""
+        timestamp = datetime.now(timezone.utc)
+        
+        # Add roles to breadcrumb (preserve existing breadcrumb structure)
+        at_time_value = breadcrumb.get('at_time', '')
+        if hasattr(at_time_value, 'isoformat'):
+            at_time_str = at_time_value.isoformat()
+        elif isinstance(at_time_value, str):
+            at_time_str = at_time_value
+        else:
+            at_time_str = str(at_time_value)
+        
+        breadcrumb_with_roles = {
+            **breadcrumb,
+            "roles": token.get('roles', []),
+            "at_time": at_time_str
+        }
+        
+        history_json = {
+            "start_timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+            "finish_timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+            "return_code": 403,
+            "operation": operation,
+            "breadcrumb": breadcrumb_with_roles,
+            "config_items": config_items,
+            "stdout": "",
+            "stderr": "",
+            "errors": [f"RBAC Failure: Access denied for user {user_id}. {error_message}"],
+            "warnings": []
+        }
+        
+        # Minify JSON
+        minified_json = json.dumps(history_json, separators=(',', ':'))
+        
+        # Log the history JSON
+        logger.log(logging.INFO, minified_json)
+        
+        # Append to file
+        with open(runbook_path, 'a', encoding='utf-8') as f:
+            f.write('\n' + minified_json)
+    
+    def _parse_last_history_entry(self, content: str) -> Tuple[str, str]:
+        """
+        Parse the last history JSON entry from runbook content.
+        
+        Returns:
+            tuple: (stdout, stderr)
+        """
+        if not content:
+            return "", ""
+        
+        # Find all JSON lines after "# History" header
+        history_section_start = content.find('# History')
+        if history_section_start == -1:
+            return "", ""
+        
+        # Get content after History header
+        history_content = content[history_section_start:]
+        
+        # Extract all JSON lines (lines that start with {)
+        json_lines = []
+        for line in history_content.split('\n'):
+            line = line.strip()
+            if line.startswith('{') and line.endswith('}'):
+                json_lines.append(line)
+        
+        if not json_lines:
+            return "", ""
+        
+        # Parse the last JSON line
+        try:
+            last_entry = json.loads(json_lines[-1])
+            stdout = last_entry.get('stdout', '')
+            stderr = last_entry.get('stderr', '')
+            return stdout, stderr
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse last history entry JSON")
+            return "", ""
     
     def _check_rbac(self, token: Dict, required_claims: Optional[Dict[str, List[str]]], operation: str) -> bool:
         """
@@ -120,32 +555,40 @@ class RunbookService:
             raise HTTPNotFound(f"Runbook not found: {filename}")
         
         try:
-            runner = RunbookRunner(str(runbook_path))
-            
-            # Load runbook to get required claims
-            if not runner.load_runbook():
+            # Load runbook
+            content, name, load_errors, load_warnings = self._load_runbook(runbook_path)
+            if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract required claims and check RBAC
-            required_claims = runner.extract_required_claims()
+            required_claims = self._extract_required_claims(content)
             self._check_rbac(token, required_claims, 'validate')
             
             # Perform validation
-            success = runner.validate()
+            success, errors, warnings = self._validate_runbook_content(runbook_path, content)
+            errors.extend(load_errors)
+            warnings.extend(load_warnings)
             
             return {
                 "success": success,
                 "runbook": filename,
-                "errors": runner.errors,
-                "warnings": runner.warnings
+                "errors": errors,
+                "warnings": warnings
             }
             
         except HTTPForbidden as e:
             # Log RBAC failure to runbook history
             try:
-                runner = RunbookRunner(str(runbook_path))
-                if runner.load_runbook():
-                    runner.append_rbac_failure_history(str(e), token.get('user_id', 'unknown'), 'validate')
+                config = Config.get_instance()
+                self._append_rbac_failure_history(
+                    runbook_path, 
+                    str(e), 
+                    token.get('user_id', 'unknown'), 
+                    'validate',
+                    token,
+                    breadcrumb,
+                    config.config_items
+                )
             except Exception as log_error:
                 logger.error(f"Failed to log RBAC failure to history: {log_error}")
             raise
@@ -176,73 +619,82 @@ class RunbookService:
         if not runbook_path.exists():
             raise HTTPNotFound(f"Runbook not found: {filename}")
         
-        # Set environment variables from env_vars dict
-        original_env = {}
-        if env_vars:
-            for key, value in env_vars.items():
-                original_env[key] = os.environ.get(key)
-                os.environ[key] = value
+        start_time = datetime.now(timezone.utc)
+        config = Config.get_instance()
         
         try:
-            runner = RunbookRunner(str(runbook_path))
-            
-            # Load runbook to get required claims
-            if not runner.load_runbook():
+            # Load runbook
+            content, name, load_errors, load_warnings = self._load_runbook(runbook_path)
+            if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract required claims and check RBAC
-            required_claims = runner.extract_required_claims()
+            required_claims = self._extract_required_claims(content)
             self._check_rbac(token, required_claims, 'execute')
             
-            # Execute the runbook
-            return_code = runner.execute()
+            # Execute the script
+            return_code, stdout, stderr = self._execute_script(runbook_path, content, env_vars)
+            finish_time = datetime.now(timezone.utc)
             
-            # Reload runbook to get updated content with history
-            runner.load_runbook()
+            # Get validation errors/warnings for history
+            success, errors, warnings = self._validate_runbook_content(runbook_path, content)
+            errors.extend(load_errors)
+            warnings.extend(load_warnings)
             
-            # Extract the last execution history from the updated runbook content
-            stdout_content = ""
-            stderr_content = ""
-            if runner.runbook_content:
-                # Match the last history entry with stdout and stderr in code blocks
-                history_pattern = r'## (\d{4}-\d{2}-\d{2}t[\d:\.]+).*?Return Code: (\d+).*?### stdout\s*```\s*\n(.*?)```.*?### stderr\s*```\s*\n(.*?)```'
-                matches = list(re.finditer(history_pattern, runner.runbook_content, re.DOTALL))
-                if matches:
-                    last_match = matches[-1]
-                    stdout_content = last_match.group(3).strip()
-                    stderr_content = last_match.group(4).strip()
+            # Append history
+            self._append_history(
+                runbook_path,
+                start_time,
+                finish_time,
+                return_code,
+                'execute',
+                stdout,
+                stderr,
+                token,
+                breadcrumb,
+                config.config_items,
+                errors,
+                warnings
+            )
+            
+            # Reload content to parse last history entry for response
+            with open(runbook_path, 'r', encoding='utf-8') as f:
+                updated_content = f.read()
+            
+            # Parse last history entry for stdout/stderr
+            parsed_stdout, parsed_stderr = self._parse_last_history_entry(updated_content)
             
             return {
                 "success": return_code == 0,
                 "runbook": filename,
                 "return_code": return_code,
-                "stdout": stdout_content,
-                "stderr": stderr_content,
-                "errors": [],
-                "warnings": []
+                "stdout": parsed_stdout or stdout,
+                "stderr": parsed_stderr or stderr,
+                "errors": errors,
+                "warnings": warnings
             }
             
         except HTTPForbidden as e:
+            finish_time = datetime.now(timezone.utc)
             # Log RBAC failure to runbook history
             try:
-                runner = RunbookRunner(str(runbook_path))
-                if runner.load_runbook():
-                    runner.append_rbac_failure_history(str(e), token.get('user_id', 'unknown'), 'execute')
+                self._append_rbac_failure_history(
+                    runbook_path,
+                    str(e),
+                    token.get('user_id', 'unknown'),
+                    'execute',
+                    token,
+                    breadcrumb,
+                    config.config_items
+                )
             except Exception as log_error:
                 logger.error(f"Failed to log RBAC failure to history: {log_error}")
             raise
         
         except Exception as e:
+            finish_time = datetime.now(timezone.utc)
             logger.error(f"Error executing runbook {filename}: {str(e)}")
             raise HTTPInternalServerError(f"Failed to execute runbook: {str(e)}")
-        
-        finally:
-            # Restore original environment variables
-            for key, value in original_env.items():
-                if value is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = value
     
     def list_runbooks(self, token: Dict, breadcrumb: Dict) -> Dict:
         """
@@ -261,11 +713,11 @@ class RunbookService:
         runbooks = []
         for file_path in self.runbooks_dir.glob('*.md'):
             try:
-                runner = RunbookRunner(str(file_path))
-                if runner.load_runbook():
+                content, name, errors, warnings = self._load_runbook(file_path)
+                if content and name:
                     runbooks.append({
                         "filename": file_path.name,
-                        "name": runner.runbook_name,
+                        "name": name,
                         "path": str(file_path.relative_to(self.runbooks_dir))
                     })
             except Exception:
@@ -301,13 +753,12 @@ class RunbookService:
             with open(runbook_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            runner = RunbookRunner(str(runbook_path))
-            runner.load_runbook()
+            content_obj, name, errors, warnings = self._load_runbook(runbook_path)
             
             return {
                 "success": True,
                 "filename": filename,
-                "name": runner.runbook_name,
+                "name": name or filename,
                 "content": content
             }
         except Exception as e:
@@ -335,12 +786,12 @@ class RunbookService:
             raise HTTPNotFound(f"Runbook not found: {filename}")
         
         try:
-            runner = RunbookRunner(str(runbook_path))
-            if not runner.load_runbook():
+            content, name, errors, warnings = self._load_runbook(runbook_path)
+            if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract environment requirements
-            env_section = runner.extract_section('Environment Requirements')
+            env_section = self._extract_section(content, 'Environment Requirements')
             if not env_section:
                 return {
                     "success": True,
@@ -350,7 +801,7 @@ class RunbookService:
                     "missing": []
                 }
             
-            env_vars = runner.extract_yaml_block(env_section)
+            env_vars = self._extract_yaml_block(env_section)
             if env_vars is None:
                 return {
                     "success": True,
@@ -390,4 +841,3 @@ class RunbookService:
         except Exception as e:
             logger.error(f"Error getting required env for runbook {filename}: {str(e)}")
             raise HTTPInternalServerError(f"Failed to get required environment variables: {str(e)}")
-

@@ -16,8 +16,8 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 import pytest
 from flask import Flask
@@ -26,7 +26,7 @@ from src.config.config import Config
 
 
 # Path to SimpleRunbook.md
-SIMPLE_RUNBOOK_PATH = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+SIMPLE_RUNBOOK_PATH = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
 ORIGINAL_RUNBOOK_CONTENT: Optional[str] = None
 
 

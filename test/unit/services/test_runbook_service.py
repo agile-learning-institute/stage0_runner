@@ -8,8 +8,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
-# Add parent of src to path so we can import src.services (for relative imports to work)
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path so we can import src.services (for relative imports to work)
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from src.services.runbook_service import RunbookService
 from src.services.runbook_parser import RunbookParser
@@ -22,11 +22,11 @@ from src.flask_utils.exceptions import HTTPNotFound, HTTPForbidden, HTTPInternal
 
 def test_load_valid_runbook():
     """Test loading a valid runbook."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     content, name, errors, warnings = RunbookParser.load_runbook(
-        Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+        Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     )
     assert content is not None, "Should load valid runbook"
     assert name == "SimpleRunbook", "Should extract correct runbook name"
@@ -35,7 +35,7 @@ def test_load_valid_runbook():
 
 def test_extract_sections():
     """Test extraction of runbook sections."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -52,7 +52,7 @@ def test_extract_sections():
 
 def test_extract_env_vars():
     """Test extraction of environment variables from YAML."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -66,7 +66,7 @@ def test_extract_env_vars():
 
 def test_extract_required_claims():
     """Test extraction of required claims from runbook."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -81,7 +81,7 @@ def test_extract_required_claims():
 
 def test_validate_runbook_content():
     """Test validation of runbook content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -102,7 +102,7 @@ def test_validate_runbook_content():
 
 def test_validate_missing_env_var():
     """Test validation fails when required env var is missing."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -119,7 +119,7 @@ def test_validate_missing_env_var():
 
 def test_script_timeout_enforcement():
     """Test that script execution times out after configured timeout."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Create a runbook content with a long-running script (sleep 10 seconds)
@@ -183,7 +183,7 @@ Output:
 
 def test_output_size_limit():
     """Test that output is truncated when exceeding size limits."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Create a runbook that generates large output
@@ -251,7 +251,7 @@ Output:
 
 def test_resource_monitoring_logging():
     """Test that resource usage is logged during script execution."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -290,7 +290,7 @@ def test_resource_monitoring_logging():
 
 def test_rbac_no_required_claims_allows_access():
     """Test that RBAC allows access when no required claims are specified."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -309,7 +309,7 @@ def test_rbac_no_required_claims_allows_access():
 
 def test_rbac_valid_role_passes():
     """Test that RBAC passes when token has valid role."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -327,7 +327,7 @@ def test_rbac_valid_role_passes():
 
 def test_rbac_invalid_role_fails():
     """Test that RBAC fails when token doesn't have required role."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -345,7 +345,7 @@ def test_rbac_invalid_role_fails():
 
 def test_rbac_missing_claim_fails():
     """Test that RBAC fails when required claim is missing from token."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -363,7 +363,7 @@ def test_rbac_missing_claim_fails():
 
 def test_rbac_string_role_handled():
     """Test that RBAC handles string role (comma-separated) correctly."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -381,7 +381,7 @@ def test_rbac_string_role_handled():
 
 def test_rbac_multiple_required_claims():
     """Test that RBAC works with multiple required claims."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -407,7 +407,7 @@ def test_rbac_multiple_required_claims():
 
 def test_rbac_partial_claims_fails():
     """Test that RBAC fails when only some required claims are present."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -437,7 +437,7 @@ def test_rbac_partial_claims_fails():
 
 def test_validate_runbook_not_found():
     """Test that validate_runbook raises HTTPNotFound for non-existent runbook."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -453,7 +453,7 @@ def test_validate_runbook_not_found():
 
 def test_execute_runbook_not_found():
     """Test that execute_runbook raises HTTPNotFound for non-existent runbook."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -469,7 +469,7 @@ def test_execute_runbook_not_found():
 
 def test_get_runbook_not_found():
     """Test that get_runbook raises HTTPNotFound for non-existent runbook."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {
@@ -485,7 +485,7 @@ def test_get_runbook_not_found():
 
 def test_execute_runbook_rbac_failure():
     """Test that execute_runbook raises HTTPForbidden on RBAC failure."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Create a runbook with required claims
@@ -537,7 +537,7 @@ echo "test"
 
 def test_load_runbook_empty_content():
     """Test loading a runbook with empty content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Create empty runbook file
@@ -557,7 +557,7 @@ def test_load_runbook_empty_content():
 
 def test_extract_section_none_content():
     """Test extracting section from None content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     result = RunbookParser.extract_section(None, 'Documentation')
@@ -566,7 +566,7 @@ def test_extract_section_none_content():
 
 def test_extract_section_empty_content():
     """Test extracting section from empty content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     result = RunbookParser.extract_section('', 'Documentation')
@@ -575,7 +575,7 @@ def test_extract_section_empty_content():
 
 def test_extract_yaml_block_none():
     """Test extracting YAML block from None content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     result = RunbookParser.extract_yaml_block(None)
@@ -584,7 +584,7 @@ def test_extract_yaml_block_none():
 
 def test_extract_yaml_block_empty():
     """Test extracting YAML block from empty content."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     result = RunbookParser.extract_yaml_block('')
@@ -593,7 +593,7 @@ def test_extract_yaml_block_empty():
 
 def test_extract_yaml_block_multiline_values():
     """Test that PyYAML correctly handles multi-line values."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -613,7 +613,7 @@ ANOTHER_VAR: "Single line value"
 
 def test_extract_yaml_block_with_comments():
     """Test that PyYAML correctly handles YAML comments."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -632,7 +632,7 @@ ANOTHER_VAR: another_value
 
 def test_extract_yaml_block_special_characters():
     """Test that PyYAML correctly handles special characters in values."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -650,7 +650,7 @@ JSON_VAR: '{"key": "value"}'
 
 def test_extract_yaml_block_invalid_yaml():
     """Test that invalid YAML is handled gracefully."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Invalid YAML (unclosed quote)
@@ -666,7 +666,7 @@ ANOTHER_VAR: value
 
 def test_extract_yaml_block_empty_yaml_block():
     """Test that empty YAML block returns empty dict."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -678,7 +678,7 @@ def test_extract_yaml_block_empty_yaml_block():
 
 def test_extract_file_requirements_with_pyyaml():
     """Test that file requirements are correctly parsed with PyYAML."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -701,7 +701,7 @@ Output:
 
 def test_extract_file_requirements_single_values():
     """Test that single file values are converted to lists."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     yaml_content = """```yaml
@@ -718,7 +718,7 @@ Output: /path/to/single_output.txt
 
 def test_extract_file_requirements_invalid_yaml():
     """Test that invalid YAML in file requirements is handled gracefully."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Invalid YAML
@@ -737,7 +737,7 @@ Input:
 
 def test_extract_required_claims_none():
     """Test extracting required claims when section doesn't exist."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     content = """# TestRunbook
@@ -763,7 +763,7 @@ echo "test"
 
 def test_resolve_runbook_path_path_traversal():
     """Test that _resolve_runbook_path prevents path traversal attacks."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Try various path traversal attempts
@@ -786,7 +786,7 @@ def test_resolve_runbook_path_path_traversal():
 
 def test_execute_script_empty_script():
     """Test executing a runbook with empty script."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
@@ -827,7 +827,7 @@ Output:
 
 def test_temp_directory_isolation():
     """Test that temp directory is created in isolated location."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -857,7 +857,7 @@ def test_temp_directory_isolation():
 
 def test_temp_directory_cleanup_on_error():
     """Test that temp directory is cleaned up even on errors."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
@@ -897,7 +897,7 @@ exit 1
 
 def test_file_permissions_on_temp_script():
     """Test that temp script has restrictive permissions."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -925,7 +925,7 @@ def test_file_permissions_on_temp_script():
 
 def test_path_traversal_prevention():
     """Test that path traversal is prevented in runbook path resolution."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Test various path traversal attempts
@@ -949,7 +949,7 @@ def test_path_traversal_prevention():
 
 def test_list_runbooks_empty_directory():
     """Test listing runbooks when directory is empty or doesn't exist."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     # Test with non-existent directory
@@ -971,7 +971,7 @@ def test_list_runbooks_empty_directory():
 
 def test_invalid_env_var_name_rejected():
     """Test that invalid environment variable names are rejected."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -1005,7 +1005,7 @@ def test_invalid_env_var_name_rejected():
 
 def test_valid_env_var_names_accepted():
     """Test that valid environment variable names are accepted."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -1038,7 +1038,7 @@ def test_valid_env_var_names_accepted():
 
 def test_env_var_value_sanitization():
     """Test that environment variable values are sanitized (control characters removed)."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
@@ -1087,7 +1087,7 @@ echo "Value: ${TEST_VAR}"
 
 def test_env_var_preserves_newlines_and_tabs():
     """Test that newlines and tabs are preserved in environment variable values."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
@@ -1140,7 +1140,7 @@ echo "${TEST_VAR}" | wc -l
 
 def test_env_var_none_value_converted():
     """Test that None values are converted to empty string."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -1163,7 +1163,7 @@ def test_env_var_none_value_converted():
 
 def test_env_var_non_string_value_converted():
     """Test that non-string values are converted to string."""
-    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'

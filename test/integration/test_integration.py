@@ -13,8 +13,8 @@ import threading
 from pathlib import Path
 from unittest.mock import patch
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'src'))
 
 import pytest
 from flask import Flask
@@ -29,7 +29,7 @@ def flask_app():
     """Create Flask app for testing."""
     # Set test environment
     os.environ['ENABLE_LOGIN'] = 'true'
-    os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent.parent / 'samples' / 'runbooks')
     os.environ['SCRIPT_TIMEOUT_SECONDS'] = '60'
     os.environ['MAX_OUTPUT_SIZE_BYTES'] = '10485760'
     

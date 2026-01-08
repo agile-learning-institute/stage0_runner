@@ -13,7 +13,7 @@ validate:
 		-w /workspace \
 		-e RUNBOOK=$(RUNBOOK) \
 		$(ENV_VARS) \
-		ghcr.io/agile-learning-institute/stage0_runner:latest \
+		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
 		runbook validate --runbook $(RUNBOOK)
 
 # Execute runbook using the deployment container
@@ -23,7 +23,7 @@ execute:
 		-w /workspace \
 		-e RUNBOOK=$(RUNBOOK) \
 		$(ENV_VARS) \
-		ghcr.io/agile-learning-institute/stage0_runner:latest \
+		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
 		runbook execute --runbook $(RUNBOOK)
 
 # Run the API server (restarts if already running)
@@ -36,7 +36,7 @@ api: down
 		-p $(API_PORT):$(API_PORT) \
 		-e API_PORT=$(API_PORT) \
 		-e RUNBOOKS_DIR=. \
-		ghcr.io/agile-learning-institute/stage0_runner:latest \
+		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
 		runbook serve --runbooks-dir . --port $(API_PORT) > /dev/null 2>&1 || true
 	@sleep 2
 	@if docker ps --format '{{.Names}}' | grep -q '^stage0_runbook_api$$'; then \

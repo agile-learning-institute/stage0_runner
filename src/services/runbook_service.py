@@ -22,6 +22,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Regex pattern for valid environment variable names
+# Must start with letter or underscore, followed by alphanumeric or underscore
+ENV_VAR_NAME_PATTERN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
 
 class RunbookService:
     """
@@ -300,12 +304,46 @@ class RunbookService:
             logger.warning(f"Invalid max_output_bytes value {max_output_bytes}, using default 10MB")
             max_output_bytes = 10 * 1024 * 1024
         
-        # Set environment variables
+        # Validate and sanitize environment variables
         original_env = {}
+        sanitized_env_vars = {}
+        
         if env_vars:
             for key, value in env_vars.items():
+                # Validate environment variable name
+                if not ENV_VAR_NAME_PATTERN.match(key):
+                    logger.warning(f"Invalid environment variable name rejected: {key} (only alphanumeric and underscore allowed)")
+                    return 1, "", f"ERROR: Invalid environment variable name: {key}. Variable names must start with a letter or underscore and contain only alphanumeric characters and underscores."
+                
+                # Validate value is string (convert if needed, but log it)
+                if value is None:
+                    logger.warning(f"Environment variable {key} has None value, converting to empty string")
+                    value = ""
+                elif not isinstance(value, str):
+                    logger.warning(f"Environment variable {key} has non-string value type {type(value)}, converting to string")
+                    value = str(value)
+                
+                # Sanitize value: remove control characters but preserve newlines and tabs for scripts
+                # Control characters (0x00-0x1F) except newline (0x0A), tab (0x09), carriage return (0x0D)
+                sanitized_value = ''.join(
+                    char for char in value 
+                    if ord(char) >= 32 or char in ['\n', '\t', '\r']
+                )
+                
+                # Log if value was modified during sanitization
+                if sanitized_value != value:
+                    logger.warning(
+                        f"Environment variable {key} value was sanitized: "
+                        f"removed {len(value) - len(sanitized_value)} control characters"
+                    )
+                
+                # Store original value for restoration
                 original_env[key] = os.environ.get(key)
-                os.environ[key] = value
+                sanitized_env_vars[key] = sanitized_value
+                
+                # Set the sanitized value in environment
+                os.environ[key] = sanitized_value
+                logger.debug(f"Set environment variable: {key} (value length: {len(sanitized_value)} bytes)")
         
         try:
             # Validate first
@@ -436,11 +474,15 @@ class RunbookService:
                         logger.warning(f"Failed to clean up temp directory {temp_exec_dir}: {cleanup_error}")
         finally:
             # Restore original environment variables
-            for key, value in original_env.items():
-                if value is None:
+            for key, original_value in original_env.items():
+                if original_value is None:
+                    # Variable didn't exist before, remove it
                     os.environ.pop(key, None)
+                    logger.debug(f"Restored environment: removed {key}")
                 else:
-                    os.environ[key] = value
+                    # Restore original value
+                    os.environ[key] = original_value
+                    logger.debug(f"Restored environment: {key} = {original_value[:50] if len(str(original_value)) > 50 else original_value}...")
     
     def _append_history(self, runbook_path: Path, start_time: datetime, finish_time: datetime, 
                        return_code: int, operation: str, stdout: str, stderr: str, 

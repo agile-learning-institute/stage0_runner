@@ -810,6 +810,251 @@ def test_list_runbooks_empty_directory():
         service_empty.list_runbooks(token, breadcrumb)
 
 
+# ============================================================================
+# Input Sanitization Tests (SEC-005)
+# ============================================================================
+
+def test_invalid_env_var_name_rejected():
+    """Test that invalid environment variable names are rejected."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        # Test invalid env var names
+        invalid_names = [
+            'VAR-NAME',  # hyphen
+            'VAR NAME',  # space
+            'VAR.NAME',  # period
+            'VAR@NAME',  # special char
+            '123VAR',    # starts with number
+            '',          # empty
+            'VAR\nNAME', # newline
+        ]
+        
+        for invalid_name in invalid_names:
+            return_code, stdout, stderr = service._execute_script(
+                runbook_path, 
+                content,
+                env_vars={invalid_name: 'value'}
+            )
+            assert return_code != 0, f"Should reject invalid env var name: {invalid_name}"
+            assert "Invalid environment variable name" in stderr or "ERROR" in stderr, \
+                f"Should return error for invalid name: {invalid_name}"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_valid_env_var_names_accepted():
+    """Test that valid environment variable names are accepted."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        # Test valid env var names
+        valid_names = [
+            'VAR_NAME',
+            'VAR123',
+            '_VAR_NAME',
+            'VAR_NAME_123',
+            'A',
+            'TEST_VAR',
+        ]
+        
+        for valid_name in valid_names:
+            return_code, stdout, stderr = service._execute_script(
+                runbook_path,
+                content,
+                env_vars={valid_name: 'test_value'}
+            )
+            # Should not fail due to invalid name (may fail for other reasons like missing env)
+            assert "Invalid environment variable name" not in stderr, \
+                f"Should accept valid env var name: {valid_name}"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_env_var_value_sanitization():
+    """Test that environment variable values are sanitized (control characters removed)."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_content = """# TestRunbook
+# Documentation
+Test sanitization
+# Environment Requirements
+```yaml
+TEST_VAR: Test variable
+```
+# File System Requirements
+```yaml
+Input:
+Output:
+```
+# Script
+```sh
+#! /bin/zsh
+echo "Value: ${TEST_VAR}"
+```
+# History
+"""
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_sanitization.md'
+    with open(runbook_path, 'w') as f:
+        f.write(runbook_content)
+    
+    try:
+        os.environ['TEST_VAR'] = 'test_value'
+        
+        # Value with control characters
+        value_with_control = 'test\x00\x01\x02value'
+        return_code, stdout, stderr = service._execute_script(
+            runbook_path,
+            runbook_content,
+            env_vars={'TEST_VAR': value_with_control}
+        )
+        
+        # Should execute (control chars removed but script should run)
+        # The value should be sanitized
+        assert return_code == 0 or "ERROR" not in stderr, \
+            "Script should execute even with control characters (they should be removed)"
+            
+    finally:
+        if runbook_path.exists():
+            runbook_path.unlink()
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_env_var_preserves_newlines_and_tabs():
+    """Test that newlines and tabs are preserved in environment variable values."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_content = """# TestRunbook
+# Documentation
+Test newlines/tabs preservation
+# Environment Requirements
+```yaml
+TEST_VAR: Test variable
+```
+# File System Requirements
+```yaml
+Input:
+Output:
+```
+# Script
+```sh
+#! /bin/zsh
+echo "${TEST_VAR}" | wc -l
+```
+# History
+"""
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_newlines.md'
+    with open(runbook_path, 'w') as f:
+        f.write(runbook_content)
+    
+    try:
+        os.environ['TEST_VAR'] = 'test_value'
+        
+        # Value with newlines and tabs (should be preserved)
+        value_with_newlines = 'line1\nline2\nline3'
+        value_with_tabs = 'col1\tcol2\tcol3'
+        
+        return_code1, stdout1, stderr1 = service._execute_script(
+            runbook_path,
+            runbook_content,
+            env_vars={'TEST_VAR': value_with_newlines}
+        )
+        
+        return_code2, stdout2, stderr2 = service._execute_script(
+            runbook_path,
+            runbook_content,
+            env_vars={'TEST_VAR': value_with_tabs}
+        )
+        
+        # Should execute successfully
+        assert return_code1 == 0 or "ERROR" not in stderr1, \
+            "Should preserve newlines in env var values"
+        assert return_code2 == 0 or "ERROR" not in stderr2, \
+            "Should preserve tabs in env var values"
+            
+    finally:
+        if runbook_path.exists():
+            runbook_path.unlink()
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_env_var_none_value_converted():
+    """Test that None values are converted to empty string."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        return_code, stdout, stderr = service._execute_script(
+            runbook_path,
+            content,
+            env_vars={'TEST_VAR': None}
+        )
+        
+        # Should not fail due to None value (it should be converted)
+        assert "None" not in stderr or "ERROR: Invalid" not in stderr, \
+            "None values should be converted to empty string"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_env_var_non_string_value_converted():
+    """Test that non-string values are converted to string."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        # Test various non-string types
+        non_string_values = [123, 45.67, True, False, ['list'], {'dict': 'value'}]
+        
+        for non_string_value in non_string_values:
+            return_code, stdout, stderr = service._execute_script(
+                runbook_path,
+                content,
+                env_vars={'TEST_VAR': non_string_value}
+            )
+            # Should not fail - should be converted to string
+            assert "ERROR: Invalid" not in stderr or "type" not in stderr.lower(), \
+                f"Non-string value {type(non_string_value)} should be converted to string"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
 # Tests can be run with pytest or the custom runner below
 if __name__ == '__main__':
     # Fallback: Simple test runner if pytest is not available

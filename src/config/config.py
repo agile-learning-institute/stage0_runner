@@ -71,6 +71,10 @@ class Config:
             self.JWT_ISSUER = ''
             self.JWT_AUDIENCE = ''
             self.JWT_TTL_MINUTES = 0
+            
+            # Script Execution Resource Limits
+            self.SCRIPT_TIMEOUT_SECONDS = 0
+            self.MAX_OUTPUT_SIZE_BYTES = 0
     
             # Default Values grouped by value type            
             self.config_strings = {
@@ -81,6 +85,8 @@ class Config:
             self.config_ints = {
                 "API_PORT": "8083",
                 "JWT_TTL_MINUTES": "480",
+                "SCRIPT_TIMEOUT_SECONDS": "600",  # 10 minutes default
+                "MAX_OUTPUT_SIZE_BYTES": "10485760",  # 10MB default (10 * 1024 * 1024)
             }
 
             self.config_booleans = {

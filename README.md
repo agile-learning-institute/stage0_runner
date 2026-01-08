@@ -123,6 +123,50 @@ http://localhost:8083/docs/explorer.html
 http://localhost:8083/docs/openapi.yaml
 ```
 
+## Configuration
+
+The API server supports configuration via environment variables. The following configuration options are available:
+
+### Server Configuration
+
+- `API_PORT` (default: `8083`) - Port number for the API server
+- `RUNBOOKS_DIR` (default: `./samples/runbooks`) - Directory containing runbook files
+- `LOGGING_LEVEL` (default: `INFO`) - Logging level (DEBUG, INFO, WARNING, ERROR)
+- `ENABLE_LOGIN` (default: `false`) - Enable `/dev-login` endpoint for development
+
+### Script Execution Resource Limits
+
+- `SCRIPT_TIMEOUT_SECONDS` (default: `600`) - Maximum execution time for scripts in seconds (10 minutes). Scripts exceeding this timeout will be terminated.
+- `MAX_OUTPUT_SIZE_BYTES` (default: `10485760`) - Maximum output size in bytes (10MB). Output exceeding this limit will be truncated with a warning.
+
+**Example:**
+```bash
+export SCRIPT_TIMEOUT_SECONDS=300  # 5 minutes
+export MAX_OUTPUT_SIZE_BYTES=5242880  # 5MB
+```
+
+### JWT Configuration
+
+- `JWT_SECRET` (default: `dev-secret-change-me`) - Secret key for JWT signing/verification. **Must be changed in production!**
+- `JWT_ALGORITHM` (default: `HS256`) - JWT signing algorithm
+- `JWT_ISSUER` (default: `dev-idp`) - Expected JWT issuer claim
+- `JWT_AUDIENCE` (default: `dev-api`) - Expected JWT audience claim
+- `JWT_TTL_MINUTES` (default: `480`) - JWT token time-to-live in minutes (8 hours)
+
+### Docker Compose Configuration
+
+When using `docker-compose.cli.yaml`, environment variables can be set in the `environment` section:
+
+```yaml
+environment:
+  API_PORT: 8083
+  RUNBOOKS_DIR: /workspace/runbooks
+  ENABLE_LOGIN: "true"
+  SCRIPT_TIMEOUT_SECONDS: "600"
+  MAX_OUTPUT_SIZE_BYTES: "10485760"
+  LOGGING_LEVEL: "INFO"
+```
+
 ## Authentication and Authorization
 
 ### Development Mode

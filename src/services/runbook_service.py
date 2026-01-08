@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import json
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
@@ -278,11 +279,24 @@ class RunbookService:
     
     def _execute_script(self, runbook_path: Path, content: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
         """
-        Execute the runbook script.
+        Execute the runbook script with resource limits (timeout, output size).
         
         Returns:
             tuple: (return_code, stdout, stderr)
         """
+        config = Config.get_instance()
+        timeout_seconds = config.SCRIPT_TIMEOUT_SECONDS
+        max_output_bytes = config.MAX_OUTPUT_SIZE_BYTES
+        
+        # Validate resource limits
+        if timeout_seconds <= 0:
+            logger.warning(f"Invalid timeout value {timeout_seconds}, using default 600 seconds")
+            timeout_seconds = 600
+        
+        if max_output_bytes <= 0:
+            logger.warning(f"Invalid max_output_bytes value {max_output_bytes}, using default 10MB")
+            max_output_bytes = 10 * 1024 * 1024
+        
         # Set environment variables
         original_env = {}
         if env_vars:
@@ -302,23 +316,100 @@ class RunbookService:
             
             # Create temporary script file
             temp_script = runbook_path.parent / 'temp.zsh'
+            start_time = time.time()
             try:
                 with open(temp_script, 'w', encoding='utf-8') as f:
                     f.write(script)
                 os.chmod(temp_script, 0o755)
                 
-                # Execute the script
-                result = subprocess.run(
-                    ['/bin/zsh', str(temp_script)],
-                    capture_output=True,
-                    text=True,
-                    cwd=runbook_path.parent
-                )
+                # Execute the script with timeout and resource limits
+                logger.info(f"Executing script with timeout={timeout_seconds}s, max_output={max_output_bytes} bytes")
                 
-                return result.returncode, result.stdout or "", result.stderr or ""
+                try:
+                    result = subprocess.run(
+                        ['/bin/zsh', str(temp_script)],
+                        capture_output=True,
+                        text=True,
+                        cwd=runbook_path.parent,
+                        timeout=timeout_seconds
+                    )
+                    
+                    execution_time = time.time() - start_time
+                    
+                    # Apply output size limits
+                    stdout = result.stdout or ""
+                    stderr = result.stderr or ""
+                    stdout_truncated = False
+                    stderr_truncated = False
+                    
+                    # Check and truncate stdout if necessary
+                    stdout_bytes = len(stdout.encode('utf-8'))
+                    if stdout_bytes > max_output_bytes:
+                        # Truncate to max size, preserving UTF-8 boundaries
+                        stdout_encoded = stdout.encode('utf-8')
+                        truncated_bytes = stdout_encoded[:max_output_bytes]
+                        # Try to decode, if it fails remove last byte until valid
+                        while True:
+                            try:
+                                stdout = truncated_bytes.decode('utf-8')
+                                break
+                            except UnicodeDecodeError:
+                                truncated_bytes = truncated_bytes[:-1]
+                        stdout_truncated = True
+                        logger.warning(
+                            f"Script stdout truncated from {stdout_bytes} bytes to {max_output_bytes} bytes "
+                            f"(execution_time={execution_time:.2f}s)"
+                        )
+                    
+                    # Check and truncate stderr if necessary
+                    stderr_bytes = len(stderr.encode('utf-8'))
+                    if stderr_bytes > max_output_bytes:
+                        stderr_encoded = stderr.encode('utf-8')
+                        truncated_bytes = stderr_encoded[:max_output_bytes]
+                        while True:
+                            try:
+                                stderr = truncated_bytes.decode('utf-8')
+                                break
+                            except UnicodeDecodeError:
+                                truncated_bytes = truncated_bytes[:-1]
+                        stderr_truncated = True
+                        logger.warning(
+                            f"Script stderr truncated from {stderr_bytes} bytes to {max_output_bytes} bytes "
+                            f"(execution_time={execution_time:.2f}s)"
+                        )
+                    
+                    # Add truncation warnings to stderr if output was truncated
+                    if stdout_truncated or stderr_truncated:
+                        truncation_warning = (
+                            f"\n[WARNING: Output truncated due to size limit ({max_output_bytes} bytes)]\n"
+                        )
+                        stderr = stderr + truncation_warning
+                    
+                    # Log resource usage
+                    logger.info(
+                        f"Script execution completed: return_code={result.returncode}, "
+                        f"execution_time={execution_time:.2f}s, "
+                        f"stdout_size={len(stdout.encode('utf-8'))} bytes, "
+                        f"stderr_size={len(stderr.encode('utf-8'))} bytes"
+                    )
+                    
+                    return result.returncode, stdout, stderr
+                    
+                except subprocess.TimeoutExpired:
+                    execution_time = time.time() - start_time
+                    error_msg = (
+                        f"Script execution timed out after {timeout_seconds} seconds "
+                        f"(actual execution time: {execution_time:.2f}s). "
+                        f"The script was terminated to prevent resource exhaustion."
+                    )
+                    logger.warning(f"Script timeout: {error_msg}")
+                    return 1, "", error_msg
                 
             except Exception as e:
-                return 1, "", f"ERROR: Failed to execute script: {e}"
+                execution_time = time.time() - start_time
+                error_msg = f"ERROR: Failed to execute script: {e} (execution_time: {execution_time:.2f}s)"
+                logger.error(error_msg, exc_info=True)
+                return 1, "", error_msg
             finally:
                 # Clean up temp script
                 if temp_script.exists():

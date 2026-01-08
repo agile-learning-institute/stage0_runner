@@ -9,6 +9,9 @@ import re
 import subprocess
 import json
 import time
+import uuid
+import tempfile
+import shutil
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
@@ -314,23 +317,36 @@ class RunbookService:
             if not script:
                 return 1, "", "ERROR: Could not extract script from runbook"
             
-            # Create temporary script file
-            temp_script = runbook_path.parent / 'temp.zsh'
+            # Create isolated temporary directory for this execution (prevents path traversal)
+            temp_exec_dir = None
             start_time = time.time()
             try:
+                # Create a dedicated temp directory for this execution
+                temp_exec_dir = Path(tempfile.mkdtemp(prefix=f'runbook-exec-{uuid.uuid4().hex[:8]}-'))
+                temp_script = temp_exec_dir / 'temp.zsh'
+                
+                # Validate that the temp directory is actually a directory (security check)
+                if not temp_exec_dir.exists() or not temp_exec_dir.is_dir():
+                    raise HTTPInternalServerError(f"Failed to create temporary execution directory")
+                
+                # Create and write the script file
                 with open(temp_script, 'w', encoding='utf-8') as f:
                     f.write(script)
-                os.chmod(temp_script, 0o755)
+                os.chmod(temp_script, 0o700)  # More restrictive: owner-only permissions
                 
                 # Execute the script with timeout and resource limits
-                logger.info(f"Executing script with timeout={timeout_seconds}s, max_output={max_output_bytes} bytes")
+                # Use temp_exec_dir as working directory for isolation
+                logger.info(
+                    f"Executing script with timeout={timeout_seconds}s, max_output={max_output_bytes} bytes, "
+                    f"temp_dir={temp_exec_dir}"
+                )
                 
                 try:
                     result = subprocess.run(
                         ['/bin/zsh', str(temp_script)],
                         capture_output=True,
                         text=True,
-                        cwd=runbook_path.parent,
+                        cwd=str(temp_exec_dir),  # Execute in isolated temp directory
                         timeout=timeout_seconds
                     )
                     
@@ -411,9 +427,13 @@ class RunbookService:
                 logger.error(error_msg, exc_info=True)
                 return 1, "", error_msg
             finally:
-                # Clean up temp script
-                if temp_script.exists():
-                    temp_script.unlink()
+                # Clean up temporary execution directory and all contents
+                if temp_exec_dir and temp_exec_dir.exists():
+                    try:
+                        shutil.rmtree(temp_exec_dir)
+                        logger.debug(f"Cleaned up temporary execution directory: {temp_exec_dir}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to clean up temp directory {temp_exec_dir}: {cleanup_error}")
         finally:
             # Restore original environment variables
             for key, value in original_env.items():

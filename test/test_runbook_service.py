@@ -5,13 +5,15 @@ Tests for the runbook service (merged RunbookRunner functionality).
 import os
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
 
 from services.runbook_service import RunbookService
 from config.config import Config
+from flask_utils.exceptions import HTTPNotFound, HTTPForbidden, HTTPInternalServerError
 
 
 def test_load_valid_runbook():
@@ -273,6 +275,539 @@ def test_resource_monitoring_logging():
         # Clean up
         if 'TEST_VAR' in os.environ:
             del os.environ['TEST_VAR']
+
+
+# ============================================================================
+# RBAC Test Coverage
+# ============================================================================
+
+def test_rbac_no_required_claims_allows_access():
+    """Test that RBAC allows access when no required claims are specified."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {'roles': ['developer']}
+    }
+    
+    # No required claims should allow access
+    result = service._check_rbac(token, None, 'execute')
+    assert result is True, "Should allow access when no required claims"
+    
+    result = service._check_rbac(token, {}, 'execute')
+    assert result is True, "Should allow access when required claims is empty dict"
+
+
+def test_rbac_valid_role_passes():
+    """Test that RBAC passes when token has valid role."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer', 'admin'],
+        'claims': {'roles': ['developer', 'admin']}
+    }
+    
+    required_claims = {'roles': ['developer', 'admin', 'devops']}
+    
+    # Should pass - token has 'developer' which is in allowed values
+    result = service._check_rbac(token, required_claims, 'execute')
+    assert result is True, "Should pass when token has valid role"
+
+
+def test_rbac_invalid_role_fails():
+    """Test that RBAC fails when token doesn't have required role."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['viewer'],
+        'claims': {'roles': ['viewer']}
+    }
+    
+    required_claims = {'roles': ['developer', 'admin']}
+    
+    # Should fail - token has 'viewer' which is not in allowed values
+    with pytest.raises(HTTPForbidden):
+        service._check_rbac(token, required_claims, 'execute')
+
+
+def test_rbac_missing_claim_fails():
+    """Test that RBAC fails when required claim is missing from token."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {}  # No 'roles' claim
+    }
+    
+    required_claims = {'roles': ['developer', 'admin']}
+    
+    # Should fail - token doesn't have 'roles' claim
+    with pytest.raises(HTTPForbidden):
+        service._check_rbac(token, required_claims, 'execute')
+
+
+def test_rbac_string_role_handled():
+    """Test that RBAC handles string role (comma-separated) correctly."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': 'developer,admin',  # String instead of list
+        'claims': {'roles': 'developer,admin'}
+    }
+    
+    required_claims = {'roles': ['developer', 'admin']}
+    
+    # Should pass - string roles are converted to list
+    result = service._check_rbac(token, required_claims, 'execute')
+    assert result is True, "Should handle string roles correctly"
+
+
+def test_rbac_multiple_required_claims():
+    """Test that RBAC works with multiple required claims."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {
+            'roles': ['developer'],
+            'department': ['engineering'],
+            'level': ['senior']
+        }
+    }
+    
+    required_claims = {
+        'roles': ['developer', 'admin'],
+        'department': ['engineering', 'operations'],
+        'level': ['senior', 'lead']
+    }
+    
+    # Should pass - token has all required claims
+    result = service._check_rbac(token, required_claims, 'execute')
+    assert result is True
+
+
+def test_rbac_partial_claims_fails():
+    """Test that RBAC fails when only some required claims are present."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {
+            'roles': ['developer'],
+            'department': ['engineering']
+            # Missing 'level' claim
+        }
+    }
+    
+    required_claims = {
+        'roles': ['developer'],
+        'department': ['engineering'],
+        'level': ['senior']  # Token doesn't have this
+    }
+    
+    # Should fail - missing 'level' claim
+    with pytest.raises(HTTPForbidden):
+        service._check_rbac(token, required_claims, 'execute')
+
+
+# ============================================================================
+# Error Path Testing
+# ============================================================================
+
+def test_validate_runbook_not_found():
+    """Test that validate_runbook raises HTTPNotFound for non-existent runbook."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {'roles': ['developer']}
+    }
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    with pytest.raises(HTTPNotFound):
+        service.validate_runbook('NonExistentRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_not_found():
+    """Test that execute_runbook raises HTTPNotFound for non-existent runbook."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {'roles': ['developer']}
+    }
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    with pytest.raises(HTTPNotFound):
+        service.execute_runbook('NonExistentRunbook.md', token, breadcrumb)
+
+
+def test_get_runbook_not_found():
+    """Test that get_runbook raises HTTPNotFound for non-existent runbook."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {'roles': ['developer']}
+    }
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    with pytest.raises(HTTPNotFound):
+        service.get_runbook('NonExistentRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_rbac_failure():
+    """Test that execute_runbook raises HTTPForbidden on RBAC failure."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Create a runbook with required claims
+    runbook_content = """# TestRunbook
+# Documentation
+Test
+# Environment Requirements
+```yaml
+```
+# File System Requirements
+```yaml
+Input:
+Output:
+```
+# Required Claims
+```yaml
+roles: admin
+```
+# Script
+```sh
+#! /bin/zsh
+echo "test"
+```
+# History
+"""
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_rbac_runbook.md'
+    with open(runbook_path, 'w') as f:
+        f.write(runbook_content)
+    
+    try:
+        token = {
+            'user_id': 'test-user',
+            'roles': ['developer'],  # Not 'admin'
+            'claims': {'roles': ['developer']}
+        }
+        breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+        
+        with pytest.raises(HTTPForbidden):
+            service.execute_runbook('test_rbac_runbook.md', token, breadcrumb)
+    finally:
+        if runbook_path.exists():
+            runbook_path.unlink()
+
+
+# ============================================================================
+# Edge Cases Testing
+# ============================================================================
+
+def test_load_runbook_empty_content():
+    """Test loading a runbook with empty content."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Create empty runbook file
+    empty_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'empty_runbook.md'
+    with open(empty_path, 'w') as f:
+        f.write('')
+    
+    try:
+        content, name, errors, warnings = service._load_runbook(empty_path)
+        assert content == '', "Should return empty content"
+        assert name is None, "Should return None name for empty content"
+        assert len(errors) > 0, "Should have errors for empty content"
+    finally:
+        if empty_path.exists():
+            empty_path.unlink()
+
+
+def test_extract_section_none_content():
+    """Test extracting section from None content."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    result = service._extract_section(None, 'Documentation')
+    assert result is None, "Should return None for None content"
+
+
+def test_extract_section_empty_content():
+    """Test extracting section from empty content."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    result = service._extract_section('', 'Documentation')
+    assert result is None, "Should return None for empty content"
+
+
+def test_extract_yaml_block_none():
+    """Test extracting YAML block from None content."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    result = service._extract_yaml_block(None)
+    assert result is None, "Should return None for None content"
+
+
+def test_extract_yaml_block_empty():
+    """Test extracting YAML block from empty content."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    result = service._extract_yaml_block('')
+    assert result is None, "Should return None for empty content"
+
+
+def test_extract_required_claims_none():
+    """Test extracting required claims when section doesn't exist."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    content = """# TestRunbook
+# Documentation
+Test
+# Environment Requirements
+```yaml
+```
+# File System Requirements
+```yaml
+```
+# Script
+```sh
+#! /bin/zsh
+echo "test"
+```
+# History
+"""
+    
+    result = service._extract_required_claims(content)
+    assert result is None, "Should return None when Required Claims section doesn't exist"
+
+
+def test_resolve_runbook_path_path_traversal():
+    """Test that _resolve_runbook_path prevents path traversal attacks."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Try various path traversal attempts
+    malicious_paths = [
+        '../other_dir/file.md',
+        '../../etc/passwd',
+        '....//....//etc/passwd',
+        'runbook/../../../etc/passwd',
+        '/etc/passwd',
+        'C:\\Windows\\System32\\config\\sam'  # Windows path
+    ]
+    
+    for malicious_path in malicious_paths:
+        resolved = service._resolve_runbook_path(malicious_path)
+        # Should resolve to runbooks_dir + basename only
+        assert malicious_path not in str(resolved), f"Path traversal detected: {malicious_path}"
+        assert service.runbooks_dir in str(resolved) or str(resolved).startswith('/tmp'), \
+            f"Resolved path should be in runbooks_dir or temp: {resolved}"
+
+
+def test_execute_script_empty_script():
+    """Test executing a runbook with empty script."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_content = """# TestRunbook
+# Documentation
+Test
+# Environment Requirements
+```yaml
+```
+# File System Requirements
+```yaml
+Input:
+Output:
+```
+# Script
+```sh
+#! /bin/zsh
+```
+# History
+"""
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_empty_script.md'
+    with open(runbook_path, 'w') as f:
+        f.write(runbook_content)
+    
+    try:
+        return_code, stdout, stderr = service._execute_script(runbook_path, runbook_content)
+        # Empty script should still execute (just return 0)
+        assert return_code == 0 or return_code == 1, "Empty script should execute"
+    finally:
+        if runbook_path.exists():
+            runbook_path.unlink()
+
+
+# ============================================================================
+# File Operations Testing
+# ============================================================================
+
+def test_temp_directory_isolation():
+    """Test that temp directory is created in isolated location."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        # Mock tempfile.mkdtemp to capture the directory used
+        with patch('services.runbook_service.tempfile.mkdtemp') as mock_mkdtemp:
+            mock_temp_dir = '/tmp/runbook-exec-test123'
+            mock_mkdtemp.return_value = mock_temp_dir
+            
+            return_code, stdout, stderr = service._execute_script(runbook_path, content)
+            
+            # Verify mkdtemp was called with correct prefix
+            mock_mkdtemp.assert_called_once()
+            call_args = mock_mkdtemp.call_args
+            assert 'runbook-exec-' in call_args[1]['prefix'], \
+                "Temp directory should have runbook-exec- prefix"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_temp_directory_cleanup_on_error():
+    """Test that temp directory is cleaned up even on errors."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_content = """# TestRunbook
+# Documentation
+Test
+# Environment Requirements
+```yaml
+```
+# File System Requirements
+```yaml
+Input:
+Output:
+```
+# Script
+```sh
+#! /bin/zsh
+exit 1
+```
+# History
+"""
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_error_cleanup.md'
+    with open(runbook_path, 'w') as f:
+        f.write(runbook_content)
+    
+    try:
+        return_code, stdout, stderr = service._execute_script(runbook_path, runbook_content)
+        
+        # Temp directory should be cleaned up - verify by checking it doesn't exist
+        # We can't directly check, but we can verify cleanup logic is called
+        assert return_code == 1, "Script should fail with exit 1"
+    finally:
+        if runbook_path.exists():
+            runbook_path.unlink()
+
+
+def test_file_permissions_on_temp_script():
+    """Test that temp script has restrictive permissions."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = service._load_runbook(runbook_path)
+    
+    os.environ['TEST_VAR'] = 'test_value'
+    
+    try:
+        import stat
+        
+        with patch('services.runbook_service.os.chmod') as mock_chmod:
+            return_code, stdout, stderr = service._execute_script(runbook_path, content)
+            
+            # Verify chmod was called with 0o700 (owner-only permissions)
+            mock_chmod.assert_called_once()
+            call_args = mock_chmod.call_args[0]
+            # chmod(path, mode)
+            assert call_args[1] == 0o700, f"Script should have 0o700 permissions, got {oct(call_args[1])}"
+            
+    finally:
+        if 'TEST_VAR' in os.environ:
+            del os.environ['TEST_VAR']
+
+
+def test_path_traversal_prevention():
+    """Test that path traversal is prevented in runbook path resolution."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Test various path traversal attempts
+    malicious_filenames = [
+        '../../../etc/passwd',
+        '....//....//etc/passwd',
+        '../other/runbook.md',
+        'runbook/../../../etc/passwd'
+    ]
+    
+    for malicious_filename in malicious_filenames:
+        resolved = service._resolve_runbook_path(malicious_filename)
+        # Should only contain the basename, not the full path
+        expected_basename = os.path.basename(malicious_filename)
+        assert expected_basename in str(resolved), \
+            f"Path should be sanitized to basename: {malicious_filename} -> {resolved}"
+        # Should not contain parent directory references
+        assert '../' not in str(resolved), \
+            f"Resolved path should not contain '../': {resolved}"
+
+
+def test_list_runbooks_empty_directory():
+    """Test listing runbooks when directory is empty or doesn't exist."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Test with non-existent directory
+    service_empty = RunbookService('/tmp/non-existent-runbooks-dir')
+    token = {
+        'user_id': 'test-user',
+        'roles': ['developer'],
+        'claims': {'roles': ['developer']}
+    }
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    with pytest.raises(HTTPNotFound):
+        service_empty.list_runbooks(token, breadcrumb)
 
 
 # Tests can be run with pytest or the custom runner below

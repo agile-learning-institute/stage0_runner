@@ -86,16 +86,10 @@ make api
 
 # Build the deployment container
 make container
+
+# All together now
+make container && make api && pipenv run e2e
 ```
-
-**Test Commands:**
-- `pipenv run test` - Runs unit tests (`test_runbook_service.py`) and integration tests (`test_integration.py`). These tests use Flask's test client and do not require a running API server.
-- `pipenv run e2e` - Runs end-to-end tests (`test_e2e.py`) that verify complete workflows from API calls through runbook execution, including authentication, authorization, error handling, and concurrent scenarios.
-
-**Development Commands:**
-- `pipenv run dev` - Runs the API server locally using Flask's development server. Useful for local development and debugging. The server runs on the port specified by `API_PORT` (default: 8083).
-- `make api` - Starts the API server in a Docker container using `docker-compose`. This uses the container image built by `make container`. The container runs with Gunicorn for production-like behavior.
-- `make container` - Builds the Docker container image (`ghcr.io/agile-learning-institute/stage0_runbook_api:latest`) used by `make api` and for deployment.
 
 ## API Server
 
@@ -140,51 +134,37 @@ http://localhost:8083/docs/openapi.yaml
 
 ## Configuration
 
-The API server supports configuration via environment variables. The following configuration options are available:
+The API server uses a centralized `Config` singleton (see [`src/config/config.py`](./src/config/config.py)) that manages all configuration via environment variables with sensible defaults.
 
-### Server Configuration
+**Important Configuration Variables:**
 
-- `API_PORT` (default: `8083`) - Port number for the API server
-- `RUNBOOKS_DIR` (default: `./samples/runbooks`) - Directory containing runbook files
-- `LOGGING_LEVEL` (default: `INFO`) - Logging level (DEBUG, INFO, WARNING, ERROR)
-- `ENABLE_LOGIN` (default: `false`) - Enable `/dev-login` endpoint for development
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | `dev-secret-change-me` | **MUST be changed in production!** Secret for JWT signing/verification |
+| `JWT_ISSUER` | `dev-idp` | Expected JWT issuer claim (must match identity provider) |
+| `JWT_AUDIENCE` | `dev-api` | Expected JWT audience claim (must match identity provider) |
+| `ENABLE_LOGIN` | `false` | Enable `/dev-login` endpoint (**NEVER enable in production**) |
+| `API_PORT` | `8083` | Port number for the API server |
+| `RUNBOOKS_DIR` | `./samples/runbooks` | Directory containing runbook files |
+| `SCRIPT_TIMEOUT_SECONDS` | `600` | Maximum script execution time (10 minutes) |
+| `MAX_OUTPUT_SIZE_BYTES` | `10485760` | Maximum script output size (10MB) |
+| `RATE_LIMIT_ENABLED` | `true` | Enable/disable rate limiting |
+| `RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute for most endpoints |
+| `RATE_LIMIT_EXECUTE_PER_MINUTE` | `10` | Executions per minute (stricter limit) |
+| `RATE_LIMIT_STORAGE_BACKEND` | `memory` | Rate limit storage: `memory` or `redis` |
+| `REDIS_URL` | - | Required if `RATE_LIMIT_STORAGE_BACKEND=redis` |
 
-### Script Execution Resource Limits
+**For complete configuration reference**, see [`src/config/config.py`](./src/config/config.py) which defines all configuration options, their types, defaults, and how they're loaded from environment variables.
 
-- `SCRIPT_TIMEOUT_SECONDS` (default: `600`) - Maximum execution time for scripts in seconds (10 minutes). Scripts exceeding this timeout will be terminated.
-- `MAX_OUTPUT_SIZE_BYTES` (default: `10485760`) - Maximum output size in bytes (10MB). Output exceeding this limit will be truncated with a warning.
-
-**Example:**
+**Example Configuration:**
 ```bash
-export SCRIPT_TIMEOUT_SECONDS=300  # 5 minutes
-export MAX_OUTPUT_SIZE_BYTES=5242880  # 5MB
+export JWT_SECRET=$(openssl rand -hex 32)
+export JWT_ISSUER="your-identity-provider"
+export JWT_AUDIENCE="runbook-api-production"
+export ENABLE_LOGIN="false"
+export RATE_LIMIT_STORAGE_BACKEND="redis"
+export REDIS_URL="redis://localhost:6379/0"
 ```
-
-### Rate Limiting
-
-- `RATE_LIMIT_ENABLED` (default: `true`) - Enable/disable rate limiting on API endpoints
-- `RATE_LIMIT_PER_MINUTE` (default: `60`) - Maximum requests per minute for most endpoints (GET, PATCH)
-- `RATE_LIMIT_EXECUTE_PER_MINUTE` (default: `10`) - Maximum executions per minute for execute endpoint and dev-login (stricter limit)
-- `RATE_LIMIT_STORAGE_BACKEND` (default: `memory`) - Storage backend for rate limiting: `memory` (single instance) or `redis` (distributed)
-
-**Example:**
-```bash
-export RATE_LIMIT_ENABLED=true
-export RATE_LIMIT_PER_MINUTE=100
-export RATE_LIMIT_EXECUTE_PER_MINUTE=20
-export RATE_LIMIT_STORAGE_BACKEND=redis  # For multi-instance deployments
-export REDIS_URL=redis://localhost:6379/0  # Required if using redis backend
-```
-
-**Note:** When rate limits are exceeded, the API returns HTTP 429 (Too Many Requests) with an error message. Rate limit information is included in response headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) when rate limiting is enabled.
-
-### JWT Configuration
-
-- `JWT_SECRET` (default: `dev-secret-change-me`) - Secret key for JWT signing/verification. **Must be changed in production!**
-- `JWT_ALGORITHM` (default: `HS256`) - JWT signing algorithm
-- `JWT_ISSUER` (default: `dev-idp`) - Expected JWT issuer claim
-- `JWT_AUDIENCE` (default: `dev-api`) - Expected JWT audience claim
-- `JWT_TTL_MINUTES` (default: `480`) - JWT token time-to-live in minutes (8 hours)
 
 ### Docker Compose Configuration
 

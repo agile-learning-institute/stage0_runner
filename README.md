@@ -4,7 +4,7 @@ This repository contains the `stage0_runbook_api` - a production-ready REST API 
 
 ## Quick Start
 
-A Runbook is a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./samples/runbooks/Runbook.md) runbook, and a [Simple Example](./samples/runbooks/SimpleRunbook.md) runbook.
+A Runbook is a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./samples/runbooks/Runbook.md) runbook, and a [Simple Example](./samples/runbooks/SimpleRunbook.md) runbook. See the [SRE Guides](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md) for instructions on setting up your own runbook.
 
 ### Using Makefile (Recommended for CLI)
 
@@ -216,7 +216,7 @@ For comprehensive security documentation, including security features, productio
 
 ## Production Deployment Guide
 
-For comprehensive production deployment documentation, including deployment options (Docker Compose single/multi-instance, Kubernetes), configuration reference, monitoring setup, load balancing, backup/recovery, and performance tuning, see [SRE.md](../stage0_runbooks/SRE.md) in the stage0_runbooks repository.
+For comprehensive production deployment documentation, including deployment options (Docker Compose single/multi-instance, Kubernetes), configuration reference, monitoring setup, load balancing, backup/recovery, and performance tuning, see [SRE.md](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md) in the stage0_runbooks repository.
 
 ## Project Structure
 

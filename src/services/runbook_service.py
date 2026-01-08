@@ -903,10 +903,15 @@ class RunbookService:
             raise HTTPNotFound(f"Runbook not found: {filename}")
         
         try:
+            # Read file once
             with open(runbook_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            content_obj, name, errors, warnings = self._load_runbook(runbook_path)
+            # Extract runbook name from content (reuse content instead of reading again)
+            name = None
+            match = re.match(r'^#\s+(.+)$', content, re.MULTILINE)
+            if match:
+                name = match.group(1).strip()
             
             return {
                 "success": True,

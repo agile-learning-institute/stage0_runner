@@ -18,6 +18,7 @@ pytest = "*"
 [scripts]
 test = "pytest test/test_runbook_service.py test/test_integration.py -v"
 e2e = "pytest test/test_e2e.py -v"
+dev = "python src/server.py"
 
 [requires]
 python_version = "3.12"

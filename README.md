@@ -78,7 +78,10 @@ pipenv run test
 # Run end-to-end (e2e) tests (comprehensive workflow tests)
 pipenv run e2e
 
-# Start the API server (for development)
+# Run the API server locally (development mode)
+pipenv run dev
+
+# Start the API server in a container (uses container built by 'make container')
 make api
 
 # Build the deployment container
@@ -88,6 +91,11 @@ make container
 **Test Commands:**
 - `pipenv run test` - Runs unit tests (`test_runbook_service.py`) and integration tests (`test_integration.py`). These tests use Flask's test client and do not require a running API server.
 - `pipenv run e2e` - Runs end-to-end tests (`test_e2e.py`) that verify complete workflows from API calls through runbook execution, including authentication, authorization, error handling, and concurrent scenarios.
+
+**Development Commands:**
+- `pipenv run dev` - Runs the API server locally using Flask's development server. Useful for local development and debugging. The server runs on the port specified by `API_PORT` (default: 8083).
+- `make api` - Starts the API server in a Docker container using `docker-compose`. This uses the container image built by `make container`. The container runs with Gunicorn for production-like behavior.
+- `make container` - Builds the Docker container image (`ghcr.io/agile-learning-institute/stage0_runbook_api:latest`) used by `make api` and for deployment.
 
 ## API Server
 

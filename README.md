@@ -150,9 +150,7 @@ Runbooks can specify required claims in the "Required Claims" section:
 
 ```yaml
 # Required Claims
-```yaml
 roles: developer, admin, devops
-```
 ```
 
 When executing or validating a runbook:
@@ -163,17 +161,7 @@ When executing or validating a runbook:
 
 ## History Format
 
-Execution history is stored as minified JSON (single line, no whitespace) in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file.
-
-**Important:** History is also logged to the application logs using structured logging. If runbook file persistence is not reliable, important execution data can be harvested from logs.
-
-For complete schema documentation, examples, and field descriptions, see [History Schema](./docs/history-schema.json).
-
-Quick reference:
-- **Format**: Minified JSON (single line)
-- **Location**: Appended to runbook's `# History` section
-- **Logging**: Also logged via `logger.log(logging.INFO, ...)` for structured logging
-- **Required fields**: `start_timestamp`, `finish_timestamp`, `return_code`, `operation`, `breadcrumb`, `config_items`, `stdout`, `stderr`, `errors`, `warnings`
+Execution history is stored as minified JSON (single line, no whitespace) in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file and logs the same value. The history document is described [here](./docs/history-schema.json).
 
 ## Execution Processing
 

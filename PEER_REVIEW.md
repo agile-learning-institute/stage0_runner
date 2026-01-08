@@ -607,7 +607,7 @@ No limit on request body size. Large JSON payloads could consume excessive memor
    - Set up pytest fixtures - **Flask app and test client fixtures already exist, fixed missing app fixture references**
    - Test all endpoints - **All endpoints tested: list, get, required-env, validate, execute, config, shutdown, dev-login, metrics, docs**
    - Test auth flows - **Comprehensive auth tests: unauthenticated, invalid token, RBAC enforcement, dev-login with custom claims**
-   - Add to CI/CD - **Created GitHub Actions workflow (.github/workflows/ci.yml) with Python 3.12/3.13 matrix, unit tests, integration tests**
+   - Add to CI/CD - **Removed CI workflow file as requested**
 
 ---
 

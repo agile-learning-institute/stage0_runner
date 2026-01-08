@@ -75,22 +75,38 @@ class Config:
             # Script Execution Resource Limits
             self.SCRIPT_TIMEOUT_SECONDS = 0
             self.MAX_OUTPUT_SIZE_BYTES = 0
+            
+            # Rate Limiting Configuration
+            self.RATE_LIMIT_ENABLED = False
+            self.RATE_LIMIT_PER_MINUTE = 0
+            self.RATE_LIMIT_EXECUTE_PER_MINUTE = 0
+            self.RATE_LIMIT_STORAGE_BACKEND = ''
+            
+            # Rate Limiting Configuration
+            self.RATE_LIMIT_ENABLED = False
+            self.RATE_LIMIT_PER_MINUTE = 0
+            self.RATE_LIMIT_EXECUTE_PER_MINUTE = 0
+            self.RATE_LIMIT_STORAGE_BACKEND = ''
     
             # Default Values grouped by value type            
             self.config_strings = {
                 "BUILT_AT": "LOCAL",
                 "LOGGING_LEVEL": "INFO",
                 "RUNBOOKS_DIR": "./samples/runbooks",
+                "RATE_LIMIT_STORAGE_BACKEND": "memory",  # memory or redis (if available)
             }
             self.config_ints = {
                 "API_PORT": "8083",
                 "JWT_TTL_MINUTES": "480",
                 "SCRIPT_TIMEOUT_SECONDS": "600",  # 10 minutes default
                 "MAX_OUTPUT_SIZE_BYTES": "10485760",  # 10MB default (10 * 1024 * 1024)
+                "RATE_LIMIT_PER_MINUTE": "60",  # 60 requests per minute default
+                "RATE_LIMIT_EXECUTE_PER_MINUTE": "10",  # 10 executions per minute (stricter)
             }
 
             self.config_booleans = {
-                "ENABLE_LOGIN": "false"
+                "ENABLE_LOGIN": "false",
+                "RATE_LIMIT_ENABLED": "true"
             }            
 
             self.config_string_secrets = {  

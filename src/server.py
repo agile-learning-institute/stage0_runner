@@ -53,6 +53,34 @@ def create_app(runbooks_dir: str = None):
     # Apply Prometheus monitoring middleware - exposes /metrics endpoint (default)
     metrics = PrometheusMetrics(app)
     
+    # Configure Rate Limiting (if enabled)
+    if config.RATE_LIMIT_ENABLED:
+        from flask_limiter import Limiter
+        from flask_limiter.util import get_remote_address
+        
+        # Configure storage backend (memory for single-instance, redis for multi-instance)
+        storage_uri = None
+        if config.RATE_LIMIT_STORAGE_BACKEND.lower() == 'redis':
+            # Redis support would require REDIS_URL env var
+            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            storage_uri = redis_url
+            logger.info(f"Rate limiting using Redis: {redis_url}")
+        else:
+            storage_uri = "memory://"
+            logger.info("Rate limiting using in-memory storage")
+        
+        limiter = Limiter(
+            app=app,
+            key_func=get_remote_address,
+            default_limits=[f"{config.RATE_LIMIT_PER_MINUTE} per minute"],
+            storage_uri=storage_uri,
+            headers_enabled=True  # Add rate limit headers to responses
+        )
+        app.extensions['limiter'] = limiter
+        logger.info(f"Rate limiting enabled: {config.RATE_LIMIT_PER_MINUTE} req/min default, {config.RATE_LIMIT_EXECUTE_PER_MINUTE} exec/min")
+    else:
+        logger.info("Rate limiting disabled")
+    
     # Register Routes
     logger.info("Registering Routes")
     

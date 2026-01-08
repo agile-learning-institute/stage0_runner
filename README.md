@@ -145,6 +145,24 @@ export SCRIPT_TIMEOUT_SECONDS=300  # 5 minutes
 export MAX_OUTPUT_SIZE_BYTES=5242880  # 5MB
 ```
 
+### Rate Limiting
+
+- `RATE_LIMIT_ENABLED` (default: `true`) - Enable/disable rate limiting on API endpoints
+- `RATE_LIMIT_PER_MINUTE` (default: `60`) - Maximum requests per minute for most endpoints (GET, PATCH)
+- `RATE_LIMIT_EXECUTE_PER_MINUTE` (default: `10`) - Maximum executions per minute for execute endpoint and dev-login (stricter limit)
+- `RATE_LIMIT_STORAGE_BACKEND` (default: `memory`) - Storage backend for rate limiting: `memory` (single instance) or `redis` (distributed)
+
+**Example:**
+```bash
+export RATE_LIMIT_ENABLED=true
+export RATE_LIMIT_PER_MINUTE=100
+export RATE_LIMIT_EXECUTE_PER_MINUTE=20
+export RATE_LIMIT_STORAGE_BACKEND=redis  # For multi-instance deployments
+export REDIS_URL=redis://localhost:6379/0  # Required if using redis backend
+```
+
+**Note:** When rate limits are exceeded, the API returns HTTP 429 (Too Many Requests) with an error message. Rate limit information is included in response headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) when rate limiting is enabled.
+
 ### JWT Configuration
 
 - `JWT_SECRET` (default: `dev-secret-change-me`) - Secret key for JWT signing/verification. **Must be changed in production!**

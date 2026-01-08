@@ -9,6 +9,7 @@ gunicorn = "*"
 gevent = "*"
 pyjwt = "*"
 prometheus-flask-exporter = "*"
+flask-limiter = "*"
 
 [dev-packages]
 pytest = "*"

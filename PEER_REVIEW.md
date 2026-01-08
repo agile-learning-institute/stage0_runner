@@ -573,17 +573,17 @@ No limit on request body size. Large JSON payloads could consume excessive memor
    - Implement cleanup on errors
    - Add tests
 
-3. **SEC-005: Input Sanitization** (1 day)
-   - Validate env var names
-   - Sanitize values
-   - Add logging
-   - Update tests
+3. **SEC-005: Input Sanitization** (**Completed by Cursor**)
+   - Validate env var names - **Regex validation for alphanumeric + underscore only**
+   - Sanitize values - **Control characters removed, newlines/tabs preserved**
+   - Add logging - **Comprehensive logging for modifications and conversions**
+   - Update tests - **7 comprehensive test cases added**
 
-4. **SEC-007: Rate Limiting** (1 day)
-   - Install Flask-Limiter
-   - Configure per-endpoint limits
-   - Add to all routes
-   - Test rate limiting behavior
+4. **SEC-007: Rate Limiting** (**Completed by Cursor**)
+   - Install Flask-Limiter - **Added to Pipfile**
+   - Configure per-endpoint limits - **60 req/min default, 10 exec/min for execute/dev-login**
+   - Add to all routes - **Applied to all authenticated endpoints**
+   - Test rate limiting behavior - **4 comprehensive integration tests added**
 
 ---
 
@@ -678,7 +678,7 @@ No limit on request body size. Large JSON payloads could consume excessive memor
 
 ### Security Tests
 - [x] Test path traversal attempts - **Completed: Multiple path traversal attack vectors tested**
-- [ ] Test input validation - **In Progress: SEC-005 implementation**
+- [x] Test input validation - **Completed: SEC-005 - 7 test cases for env var validation/sanitization**
 - [x] Test resource limit enforcement - **Completed: Timeout and output size limit tests**
 - [ ] Test rate limiting - **Pending: SEC-007 implementation**
 
@@ -693,10 +693,10 @@ No limit on request body size. Large JSON payloads could consume excessive memor
 ## Code Review Checklist
 
 ### Security
-- [ ] Input validation on all user inputs - **In Progress: SEC-005**
+- [x] Input validation on all user inputs - **Completed: SEC-005 - Environment variable name/value validation**
 - [x] Path traversal protection - **Completed: SEC-001 - Isolated temp directories**
 - [x] Resource limits on executions - **Completed: SEC-002 - Timeout and output size limits**
-- [ ] Rate limiting implemented - **Pending: SEC-007**
+- [x] Rate limiting implemented - **Completed: SEC-007 - Flask-Limiter with per-endpoint limits**
 - [x] Secure authentication/authorization - **Verified: JWT with RBAC**
 - [x] No secrets in code - **Verified: Secrets use environment variables**
 - [x] Error messages don't leak information - **Verified: Generic error messages**

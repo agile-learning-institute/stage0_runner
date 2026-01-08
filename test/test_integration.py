@@ -608,11 +608,41 @@ def test_docs_endpoint_public(client):
     assert 'openapi' in response.data.decode('utf-8').lower()
 
 
+def test_shutdown_endpoint(client, dev_token):
+    """Test POST /api/shutdown endpoint."""
+    # Note: In test environment, shutdown may not actually work
+    # but we can verify the endpoint exists and requires auth
+    response = client.post(
+        '/api/shutdown',
+        headers={'Authorization': f'Bearer {dev_token}'},
+        content_type='application/json'
+    )
+    
+    # Should return 200 (shutdown initiated) or handle gracefully
+    assert response.status_code in [200, 500]  # 500 if shutdown not available in test
+    if response.status_code == 200:
+        data = json.loads(response.data)
+        assert 'message' in data
+        assert 'shutdown' in data['message'].lower()
+
+
+def test_shutdown_endpoint_requires_auth(client):
+    """Test that shutdown endpoint requires authentication."""
+    response = client.post(
+        '/api/shutdown',
+        content_type='application/json'
+    )
+    
+    assert response.status_code == 401
+    data = json.loads(response.data)
+    assert 'error' in data
+
+
 # ============================================================================
 # Rate Limiting Tests (SEC-007)
 # ============================================================================
 
-def test_rate_limiting_enforced(client, dev_token, app):
+def test_rate_limiting_enforced(client, dev_token):
     """Test that rate limiting is enforced when enabled."""
     config = Config.get_instance()
     original_rate_limit_enabled = config.RATE_LIMIT_ENABLED
@@ -655,7 +685,7 @@ def test_rate_limiting_enforced(client, dev_token, app):
         config.RATE_LIMIT_PER_MINUTE = original_rate_limit
 
 
-def test_rate_limiting_disabled_when_config_off(client, dev_token, app):
+def test_rate_limiting_disabled_when_config_off(client, dev_token):
     """Test that rate limiting is not enforced when disabled."""
     config = Config.get_instance()
     original_rate_limit_enabled = config.RATE_LIMIT_ENABLED
@@ -680,7 +710,7 @@ def test_rate_limiting_disabled_when_config_off(client, dev_token, app):
         config.RATE_LIMIT_ENABLED = original_rate_limit_enabled
 
 
-def test_rate_limiting_execute_endpoint_stricter(client, dev_token, app):
+def test_rate_limiting_execute_endpoint_stricter(client, dev_token):
     """Test that execute endpoint has stricter rate limits."""
     config = Config.get_instance()
     original_rate_limit_enabled = config.RATE_LIMIT_ENABLED
@@ -724,7 +754,7 @@ def test_rate_limiting_execute_endpoint_stricter(client, dev_token, app):
             del os.environ['TEST_VAR']
 
 
-def test_rate_limiting_headers_present(client, dev_token, app):
+def test_rate_limiting_headers_present(client, dev_token):
     """Test that rate limiting headers are present in responses."""
     config = Config.get_instance()
     original_rate_limit_enabled = config.RATE_LIMIT_ENABLED

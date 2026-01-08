@@ -203,33 +203,11 @@ Configure your identity provider to issue JWTs with:
 
 ### Role-Based Access Control (RBAC)
 
-Runbooks can specify required claims in the "Required Claims" section:
+Runbooks can specify required claims in the "Required Claims" section to control access. See [RUNBOOK.md](./RUNBOOK.md#required-claims) for details on how to specify required claims and how RBAC validation works.
 
-```yaml
-# Required Claims
-roles: developer, admin, devops
-```
+## Runbook Format
 
-When executing or validating a runbook:
-1. The API extracts required claims from the runbook
-2. Validates that the user's token contains the required claims
-3. If validation fails, returns 403 Forbidden and logs the attempt to runbook history
-4. If validation succeeds, proceeds with operation
-
-## History Format
-
-Execution history is stored as minified JSON (single line, no whitespace) in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file and logs the same value. The history document is described [here](./docs/history-schema.json).
-
-## Execution Processing
-
-1. Validate runbook structure and requirements (fail-fast)
-2. Check RBAC permissions based on required claims
-3. Create temp.zsh with the contents of the script
-4. Set executable permissions on temp.zsh (`chmod +x`)
-5. Invoke temp.zsh and capture stdout and stderr
-6. Append execution history as minified JSON to runbook
-7. Log execution history to application logs
-8. Remove temp.zsh
+For complete details on runbook structure, required sections, history format, and execution processing, see [RUNBOOK.md](./RUNBOOK.md).
 
 ## Security
 

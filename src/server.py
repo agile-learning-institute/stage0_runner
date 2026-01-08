@@ -44,11 +44,9 @@ def create_app(runbooks_dir: str = None):
         runbooks_dir = config.RUNBOOKS_DIR
     
     # Initialize Flask App
-    from src.flask_utils.ejson_encoder import MongoJSONEncoder
     from prometheus_flask_exporter import PrometheusMetrics
     
     app = Flask(__name__)
-    app.json = MongoJSONEncoder(app)
     
     # Apply Prometheus monitoring middleware - exposes /metrics endpoint (default)
     metrics = PrometheusMetrics(app)

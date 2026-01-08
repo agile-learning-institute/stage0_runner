@@ -247,8 +247,7 @@ For comprehensive production deployment documentation, including deployment opti
 │   │   ├── token.py               # JWT token handling
 │   │   ├── exceptions.py          # HTTP exceptions
 │   │   ├── route_wrapper.py       # Exception handling decorator
-│   │   ├── breadcrumb.py          # Request breadcrumbs
-│   │   └── ejson_encoder.py       # JSON encoder
+│   │   └── breadcrumb.py          # Request breadcrumbs
 │   ├── routes/                    # API route blueprints
 │   │   ├── config_routes.py
 │   │   ├── dev_login_routes.py

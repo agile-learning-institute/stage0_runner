@@ -10,6 +10,7 @@ gevent = "*"
 pyjwt = "*"
 prometheus-flask-exporter = "*"
 flask-limiter = "*"
+pyyaml = "*"
 
 [dev-packages]
 pytest = "*"
@@ -19,4 +20,3 @@ test = "pytest test/"
 
 [requires]
 python_version = "3.12"
-

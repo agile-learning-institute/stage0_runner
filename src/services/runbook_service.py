@@ -12,6 +12,7 @@ import time
 import uuid
 import tempfile
 import shutil
+import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
@@ -123,25 +124,53 @@ class RunbookService:
         return section_content
     
     def _extract_yaml_block(self, section_content: str) -> Optional[Dict[str, str]]:
-        """Extract YAML from a code block in section content."""
+        """
+        Extract YAML from a code block in section content using PyYAML.
+        
+        Args:
+            section_content: Content of a section that may contain a YAML code block
+            
+        Returns:
+            Dictionary of parsed YAML key-value pairs, or None if no YAML block found
+        """
         if not section_content:
             return None
+        
         pattern = r'```yaml\s*\n(.*?)```'
         match = re.search(pattern, section_content, re.DOTALL)
-        if match:
-            yaml_content = match.group(1).strip()
-            # Simple YAML parsing for key: value pairs
-            env_vars = {}
-            for line in yaml_content.split('\n'):
-                line = line.strip()
-                if ':' in line and not line.startswith('#'):
-                    parts = line.split(':', 1)
-                    if len(parts) == 2:
-                        key = parts[0].strip()
-                        value = parts[1].strip()
-                        env_vars[key] = value
-            return env_vars if env_vars else {}  # Return empty dict if no vars found
-        return None
+        if not match:
+            return None
+        
+        yaml_content = match.group(1).strip()
+        if not yaml_content:
+            return {}  # Empty YAML block returns empty dict
+        
+        try:
+            # Use PyYAML to parse the YAML content
+            parsed_yaml = yaml.safe_load(yaml_content)
+            
+            # Handle different return types from YAML parser
+            if parsed_yaml is None:
+                return {}  # Empty or null YAML
+            elif isinstance(parsed_yaml, dict):
+                # Convert all values to strings for consistency with existing code
+                result = {}
+                for key, value in parsed_yaml.items():
+                    if value is None:
+                        result[str(key)] = ""
+                    else:
+                        result[str(key)] = str(value)
+                return result if result else {}
+            else:
+                logger.warning(f"YAML block did not parse to a dictionary, got {type(parsed_yaml)}")
+                return None
+                
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML block: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error parsing YAML block: {e}", exc_info=True)
+            return None
     
     def _extract_required_claims(self, content: str) -> Optional[Dict[str, List[str]]]:
         """Extract required claims from Required Claims section."""
@@ -171,23 +200,65 @@ class RunbookService:
         return required_claims if required_claims else None
     
     def _extract_file_requirements(self, section_content: str) -> Dict[str, List[str]]:
-        """Extract file system requirements from YAML block."""
+        """
+        Extract file system requirements from YAML block using PyYAML.
+        
+        Args:
+            section_content: Content of File System Requirements section
+            
+        Returns:
+            Dictionary with 'Input' and 'Output' keys, each containing a list of file paths
+        """
         requirements = {'Input': [], 'Output': []}
+        
+        if not section_content:
+            return requirements
+        
         pattern = r'```yaml\s*\n(.*?)```'
         match = re.search(pattern, section_content, re.DOTALL)
-        if match:
-            yaml_content = match.group(1).strip()
-            current_section = None
-            for line in yaml_content.split('\n'):
-                line = line.strip()
-                if line.startswith('Input:'):
-                    current_section = 'Input'
-                elif line.startswith('Output:'):
-                    current_section = 'Output'
-                elif line.startswith('-') and current_section:
-                    file_path = line[1:].strip()
-                    requirements[current_section].append(file_path)
-        return requirements
+        if not match:
+            return requirements
+        
+        yaml_content = match.group(1).strip()
+        if not yaml_content:
+            return requirements
+        
+        try:
+            # Use PyYAML to parse the YAML content
+            parsed_yaml = yaml.safe_load(yaml_content)
+            
+            if parsed_yaml is None:
+                return requirements
+            
+            if not isinstance(parsed_yaml, dict):
+                logger.warning(f"File requirements YAML did not parse to a dictionary, got {type(parsed_yaml)}")
+                return requirements
+            
+            # Extract Input and Output lists
+            if 'Input' in parsed_yaml:
+                input_value = parsed_yaml['Input']
+                if isinstance(input_value, list):
+                    requirements['Input'] = [str(item) for item in input_value if item is not None]
+                elif input_value is not None:
+                    # Single value, convert to list
+                    requirements['Input'] = [str(input_value)]
+            
+            if 'Output' in parsed_yaml:
+                output_value = parsed_yaml['Output']
+                if isinstance(output_value, list):
+                    requirements['Output'] = [str(item) for item in output_value if item is not None]
+                elif output_value is not None:
+                    # Single value, convert to list
+                    requirements['Output'] = [str(output_value)]
+            
+            return requirements
+            
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing file requirements YAML: {e}")
+            return requirements
+        except Exception as e:
+            logger.error(f"Unexpected error parsing file requirements YAML: {e}", exc_info=True)
+            return requirements
     
     def _extract_script(self, content: str) -> Optional[str]:
         """Extract the shell script from the Script section."""

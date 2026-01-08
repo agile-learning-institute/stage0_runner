@@ -584,6 +584,150 @@ def test_extract_yaml_block_empty():
     assert result is None, "Should return None for empty content"
 
 
+def test_extract_yaml_block_multiline_values():
+    """Test that PyYAML correctly handles multi-line values."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+TEST_VAR: |
+  This is a multi-line
+  value with multiple
+  lines
+ANOTHER_VAR: "Single line value"
+```"""
+    
+    result = service._extract_yaml_block(yaml_content)
+    assert result is not None, "Should extract YAML with multi-line values"
+    assert 'TEST_VAR' in result, "Should find TEST_VAR"
+    assert '\n' in result['TEST_VAR'], "Multi-line value should preserve newlines"
+    assert 'ANOTHER_VAR' in result, "Should find ANOTHER_VAR"
+
+
+def test_extract_yaml_block_with_comments():
+    """Test that PyYAML correctly handles YAML comments."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+# This is a comment
+TEST_VAR: test_value
+# Another comment
+ANOTHER_VAR: another_value
+```"""
+    
+    result = service._extract_yaml_block(yaml_content)
+    assert result is not None, "Should extract YAML with comments"
+    assert 'TEST_VAR' in result, "Should find TEST_VAR (comments should be ignored)"
+    assert result['TEST_VAR'] == 'test_value', "Should extract correct value"
+    assert 'ANOTHER_VAR' in result, "Should find ANOTHER_VAR"
+
+
+def test_extract_yaml_block_special_characters():
+    """Test that PyYAML correctly handles special characters in values."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+TEST_VAR: "Value with: colon and 'quotes' and \\"escaped\\" quotes"
+PATH_VAR: /path/to/file:with:colons
+JSON_VAR: '{"key": "value"}'
+```"""
+    
+    result = service._extract_yaml_block(yaml_content)
+    assert result is not None, "Should extract YAML with special characters"
+    assert 'TEST_VAR' in result, "Should find TEST_VAR"
+    assert 'colon' in result['TEST_VAR'], "Should preserve special characters"
+    assert 'PATH_VAR' in result, "Should find PATH_VAR"
+
+
+def test_extract_yaml_block_invalid_yaml():
+    """Test that invalid YAML is handled gracefully."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Invalid YAML (unclosed quote)
+    yaml_content = """```yaml
+TEST_VAR: "unclosed quote
+ANOTHER_VAR: value
+```"""
+    
+    result = service._extract_yaml_block(yaml_content)
+    # Should return None on parse error
+    assert result is None, "Should return None for invalid YAML"
+
+
+def test_extract_yaml_block_empty_yaml_block():
+    """Test that empty YAML block returns empty dict."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+```"""
+    
+    result = service._extract_yaml_block(yaml_content)
+    assert result == {}, "Should return empty dict for empty YAML block"
+
+
+def test_extract_file_requirements_with_pyyaml():
+    """Test that file requirements are correctly parsed with PyYAML."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+Input:
+  - /path/to/input1.txt
+  - /path/to/input2.txt
+Output:
+  - /path/to/output1.txt
+  - /path/to/output2.txt
+```"""
+    
+    result = service._extract_file_requirements(yaml_content)
+    assert 'Input' in result, "Should have Input key"
+    assert 'Output' in result, "Should have Output key"
+    assert len(result['Input']) == 2, "Should extract 2 input files"
+    assert len(result['Output']) == 2, "Should extract 2 output files"
+    assert '/path/to/input1.txt' in result['Input'], "Should find input1"
+    assert '/path/to/output1.txt' in result['Output'], "Should find output1"
+
+
+def test_extract_file_requirements_single_values():
+    """Test that single file values are converted to lists."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    yaml_content = """```yaml
+Input: /path/to/single_input.txt
+Output: /path/to/single_output.txt
+```"""
+    
+    result = service._extract_file_requirements(yaml_content)
+    assert isinstance(result['Input'], list), "Input should be a list"
+    assert isinstance(result['Output'], list), "Output should be a list"
+    assert len(result['Input']) == 1, "Should have one input file"
+    assert result['Input'][0] == '/path/to/single_input.txt', "Should extract single input"
+
+
+def test_extract_file_requirements_invalid_yaml():
+    """Test that invalid YAML in file requirements is handled gracefully."""
+    runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    # Invalid YAML
+    yaml_content = """```yaml
+Input:
+  - /path/to/file
+  invalid: yaml: structure
+```"""
+    
+    result = service._extract_file_requirements(yaml_content)
+    # Should return default empty requirements on error
+    assert 'Input' in result, "Should have Input key"
+    assert 'Output' in result, "Should have Output key"
+    # May or may not parse partially, but should not crash
+
+
 def test_extract_required_claims_none():
     """Test extracting required claims when section doesn't exist."""
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')

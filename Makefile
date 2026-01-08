@@ -11,8 +11,8 @@ RUNBOOK_FILENAME := $(shell basename $(RUNBOOK))
 
 # Down target - stops docker-compose services
 down:
-	@docker-compose -f docker-compose.cli.yaml down > /dev/null 2>&1 || true
-	@docker-compose -f docker-compose.cli.yaml rm -f > /dev/null 2>&1 || true
+	@docker-compose -f docker-compose.yaml down > /dev/null 2>&1 || true
+	@docker-compose -f docker-compose.yaml rm -f > /dev/null 2>&1 || true
 
 # Helper to wait for API health
 _wait_for_api:
@@ -39,7 +39,7 @@ _get_token:
 validate:
 	@$(MAKE) down || true
 	@echo "Starting API server..."
-	@docker-compose -f docker-compose.cli.yaml up -d
+	@docker-compose -f docker-compose.yaml up -d
 	@sleep 3
 	@$(MAKE) _wait_for_api || ($(MAKE) down && exit 1)
 	@echo "Getting authentication token..."
@@ -85,7 +85,7 @@ validate:
 execute:
 	@$(MAKE) down || true
 	@echo "Starting API server..."
-	@docker-compose -f docker-compose.cli.yaml up -d
+	@docker-compose -f docker-compose.yaml up -d
 	@sleep 3
 	@$(MAKE) _wait_for_api || ($(MAKE) down && exit 1)
 	@echo "Getting authentication token..."
@@ -136,7 +136,7 @@ execute:
 api:
 	@$(MAKE) down || true
 	@echo "Starting API server container..."
-	@docker-compose -f docker-compose.cli.yaml up
+	@docker-compose -f docker-compose.yaml up
 
 # Build the deployment container
 container:

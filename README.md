@@ -168,7 +168,7 @@ export REDIS_URL="redis://localhost:6379/0"
 
 ### Docker Compose Configuration
 
-When using `docker-compose.cli.yaml`, environment variables can be set in the `environment` section:
+When using `docker-compose.yaml`, environment variables can be set in the `environment` section:
 
 ```yaml
 environment:
@@ -223,7 +223,7 @@ For comprehensive production deployment documentation, including deployment opti
 ```
 .
 ├── Dockerfile                      # Base Docker configuration
-├── docker-compose.cli.yaml        # Docker Compose for CLI operations
+├── docker-compose.yaml            # Docker Compose configuration
 ├── samples/                       # Sample Dockerfiles and example runbooks
 │   ├── Dockerfile.extended        # Extended image with Docker CLI and GitHub CLI
 │   ├── Dockerfile.with-runbooks   # Image with packaged runbooks collection

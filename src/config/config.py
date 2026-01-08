@@ -81,12 +81,6 @@ class Config:
             self.RATE_LIMIT_PER_MINUTE = 0
             self.RATE_LIMIT_EXECUTE_PER_MINUTE = 0
             self.RATE_LIMIT_STORAGE_BACKEND = ''
-            
-            # Rate Limiting Configuration
-            self.RATE_LIMIT_ENABLED = False
-            self.RATE_LIMIT_PER_MINUTE = 0
-            self.RATE_LIMIT_EXECUTE_PER_MINUTE = 0
-            self.RATE_LIMIT_STORAGE_BACKEND = ''
     
             # Default Values grouped by value type            
             self.config_strings = {

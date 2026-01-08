@@ -163,22 +163,17 @@ When executing or validating a runbook:
 
 ## History Format
 
-Execution history is stored as minified JSON (single line) in the runbook's History section. Each entry includes:
-
-- `start_timestamp` and `finish_timestamp` - ISO 8601 timestamps
-- `return_code` - Script return code
-- `operation` - Operation name (e.g., "execute", "validate")
-- `breadcrumb` - Request metadata including user, IP, correlation ID, and token roles
-- `config_items` - Configuration values at execution time
-- `stdout` and `stderr` - Script output
-- `errors` and `warnings` - Validation or execution errors/warnings
-
-Example history entry (minified):
-```json
-{"start_timestamp":"2026-01-08T00:41:27.979Z","finish_timestamp":"2026-01-08T00:41:27.987Z","return_code":0,"operation":"execute","breadcrumb":{"at_time":"2026-01-08T00:41:27.979Z","by_user":"user123","from_ip":"192.168.1.1","correlation_id":"abc-123","roles":["developer","admin"]},"config_items":[{"name":"API_PORT","value":"8083","from":"default"}],"stdout":"...","stderr":"...","errors":[],"warnings":[]}
-```
+Execution history is stored as minified JSON (single line, no whitespace) in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file.
 
 **Important:** History is also logged to the application logs using structured logging. If runbook file persistence is not reliable, important execution data can be harvested from logs.
+
+For complete schema documentation, examples, and field descriptions, see [History Schema](./docs/history-schema.json).
+
+Quick reference:
+- **Format**: Minified JSON (single line)
+- **Location**: Appended to runbook's `# History` section
+- **Logging**: Also logged via `logger.log(logging.INFO, ...)` for structured logging
+- **Required fields**: `start_timestamp`, `finish_timestamp`, `return_code`, `operation`, `breadcrumb`, `config_items`, `stdout`, `stderr`, `errors`, `warnings`
 
 ## Execution Processing
 
@@ -220,6 +215,7 @@ See [SRE.md](../stage0_runbooks/SRE.md) in the stage0_runbooks repository for de
 ├── RUNBOOK.md                     # Runbook format specification
 ├── docs/
 │   ├── explorer.html              # API Explorer (Swagger UI)
+│   ├── history-schema.json        # JSON schema for history entries
 │   └── openapi.yaml               # OpenAPI specification
 ├── src/
 │   ├── config/                    # Configuration management

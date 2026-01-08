@@ -22,16 +22,8 @@ class RunbookValidator:
     - Validating script section exists
     """
     
-    def __init__(self, parser: RunbookParser):
-        """
-        Initialize the validator.
-        
-        Args:
-            parser: RunbookParser instance for extracting content
-        """
-        self.parser = parser
-    
-    def validate_runbook_content(self, runbook_path: Path, content: str) -> Tuple[bool, List[str], List[str]]:
+    @staticmethod
+    def validate_runbook_content(runbook_path: Path, content: str) -> Tuple[bool, List[str], List[str]]:
         """
         Validate the runbook structure and requirements.
         
@@ -60,7 +52,7 @@ class RunbookValidator:
         # Required Claims is optional - if present, it must be valid
         
         for section in required_sections:
-            section_content = self.parser.extract_section(content, section)
+            section_content = RunbookParser.extract_section(content, section)
             if section_content is None:
                 errors.append(f"Missing required section: {section}")
             # History section can be empty, others cannot
@@ -68,9 +60,9 @@ class RunbookValidator:
                 errors.append(f"Section '{section}' is empty")
         
         # Validate Environment Requirements
-        env_section = self.parser.extract_section(content, 'Environment Requirements')
+        env_section = RunbookParser.extract_section(content, 'Environment Requirements')
         if env_section:
-            env_vars = self.parser.extract_yaml_block(env_section)
+            env_vars = RunbookParser.extract_yaml_block(env_section)
             if env_vars is not None:
                 for var_name in env_vars.keys():
                     if var_name not in os.environ:
@@ -81,9 +73,9 @@ class RunbookValidator:
             errors.append("Missing Environment Requirements section")
         
         # Validate File System Requirements
-        fs_section = self.parser.extract_section(content, 'File System Requirements')
+        fs_section = RunbookParser.extract_section(content, 'File System Requirements')
         if fs_section:
-            requirements = self.parser.extract_file_requirements(fs_section)
+            requirements = RunbookParser.extract_file_requirements(fs_section)
             for file_path in requirements.get('Input', []):
                 # Resolve relative to runbook directory
                 full_path = (runbook_path.parent / file_path).resolve()
@@ -101,12 +93,12 @@ class RunbookValidator:
             errors.append("File System Requirements section must contain a YAML code block")
         
         # Validate Script section
-        script = self.parser.extract_script(content)
+        script = RunbookParser.extract_script(content)
         if not script:
             errors.append("Script section must contain a sh code block")
         
         # Validate History section exists (empty content is valid)
-        history_section = self.parser.extract_section(content, 'History')
+        history_section = RunbookParser.extract_section(content, 'History')
         if history_section is None:
             # Check if History header exists at all
             if not re.search(r'^#\s+History\s*$', content, re.MULTILINE):

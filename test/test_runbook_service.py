@@ -25,7 +25,7 @@ def test_load_valid_runbook():
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    content, name, errors, warnings = service.parser.load_runbook(
+    content, name, errors, warnings = RunbookParser.load_runbook(
         Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     )
     assert content is not None, "Should load valid runbook"
@@ -39,13 +39,13 @@ def test_extract_sections():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Test section extraction
-    doc_section = service.parser.extract_section(content, 'Documentation')
+    doc_section = RunbookParser.extract_section(content, 'Documentation')
     assert doc_section is not None, "Should extract Documentation section"
     
-    script = service.parser.extract_script(content)
+    script = RunbookParser.extract_script(content)
     assert script is not None, "Should extract script"
     assert 'echo' in script, "Script should contain echo command"
 
@@ -56,10 +56,10 @@ def test_extract_env_vars():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
-    env_section = service.parser.extract_section(content, 'Environment Requirements')
-    env_vars = service.parser.extract_yaml_block(env_section)
+    env_section = RunbookParser.extract_section(content, 'Environment Requirements')
+    env_vars = RunbookParser.extract_yaml_block(env_section)
     assert env_vars is not None, "Should extract env vars"
     assert 'TEST_VAR' in env_vars, "Should find TEST_VAR in env vars"
 
@@ -70,9 +70,9 @@ def test_extract_required_claims():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
-    required_claims = service.rbac.extract_required_claims(content)
+    required_claims = RBACAuthorizer.extract_required_claims(content)
     # SimpleRunbook should have required claims section
     assert required_claims is not None, "Should extract required claims"
     assert 'roles' in required_claims, "Should have roles claim"
@@ -85,13 +85,13 @@ def test_validate_runbook_content():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Set required environment variable
     os.environ['TEST_VAR'] = 'test_value'
     
     try:
-        success, validation_errors, validation_warnings = service.validator.validate_runbook_content(runbook_path, content)
+        success, validation_errors, validation_warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
         # Should pass validation if TEST_VAR is set
         assert success, f"Validation should pass. Errors: {validation_errors}"
     finally:
@@ -106,13 +106,13 @@ def test_validate_missing_env_var():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Ensure TEST_VAR is not set
     if 'TEST_VAR' in os.environ:
         del os.environ['TEST_VAR']
     
-    success, validation_errors, validation_warnings = service.validator.validate_runbook_content(runbook_path, content)
+    success, validation_errors, validation_warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
     assert not success, "Validation should fail when env var is missing"
     assert any('TEST_VAR' in error for error in validation_errors), "Should report missing env var"
 
@@ -163,8 +163,8 @@ Output:
         
         try:
             # Execute with short timeout
-            script = service.parser.extract_script(runbook_content)
-            return_code, stdout, stderr = service.executor.execute_script(script)
+            script = RunbookParser.extract_script(runbook_content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
             # Should timeout and return error
             assert return_code != 0, "Script should fail due to timeout"
@@ -228,8 +228,8 @@ Output:
         
         try:
             # Execute script
-            script = service.parser.extract_script(runbook_content)
-            return_code, stdout, stderr = service.executor.execute_script(script)
+            script = RunbookParser.extract_script(runbook_content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
             # Output should be truncated
             stdout_size = len(stdout.encode('utf-8'))
@@ -255,7 +255,7 @@ def test_resource_monitoring_logging():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Set required environment variable
     os.environ['TEST_VAR'] = 'test_value'
@@ -264,8 +264,8 @@ def test_resource_monitoring_logging():
         # Use patch to capture log messages
         import logging
         with patch('services.runbook_service.logger') as mock_logger:
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script)
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
             # Verify that resource monitoring logs were called
             info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
@@ -300,10 +300,10 @@ def test_rbac_no_required_claims_allows_access():
     }
     
     # No required claims should allow access
-    result = service.rbac.check_rbac(token, None, 'execute')
+    result = RBACAuthorizer.check_rbac(token, None, 'execute')
     assert result is True, "Should allow access when no required claims"
     
-    result = service.rbac.check_rbac(token, {}, 'execute')
+    result = RBACAuthorizer.check_rbac(token, {}, 'execute')
     assert result is True, "Should allow access when required claims is empty dict"
 
 
@@ -321,7 +321,7 @@ def test_rbac_valid_role_passes():
     required_claims = {'roles': ['developer', 'admin', 'devops']}
     
     # Should pass - token has 'developer' which is in allowed values
-    result = service.rbac.check_rbac(token, required_claims, 'execute')
+    result = RBACAuthorizer.check_rbac(token, required_claims, 'execute')
     assert result is True, "Should pass when token has valid role"
 
 
@@ -340,7 +340,7 @@ def test_rbac_invalid_role_fails():
     
     # Should fail - token has 'viewer' which is not in allowed values
     with pytest.raises(HTTPForbidden):
-        service.rbac.check_rbac(token, required_claims, 'execute')
+        RBACAuthorizer.check_rbac(token, required_claims, 'execute')
 
 
 def test_rbac_missing_claim_fails():
@@ -358,7 +358,7 @@ def test_rbac_missing_claim_fails():
     
     # Should fail - token doesn't have 'roles' claim
     with pytest.raises(HTTPForbidden):
-        service.rbac.check_rbac(token, required_claims, 'execute')
+        RBACAuthorizer.check_rbac(token, required_claims, 'execute')
 
 
 def test_rbac_string_role_handled():
@@ -375,7 +375,7 @@ def test_rbac_string_role_handled():
     required_claims = {'roles': ['developer', 'admin']}
     
     # Should pass - string roles are converted to list
-    result = service.rbac.check_rbac(token, required_claims, 'execute')
+    result = RBACAuthorizer.check_rbac(token, required_claims, 'execute')
     assert result is True, "Should handle string roles correctly"
 
 
@@ -401,7 +401,7 @@ def test_rbac_multiple_required_claims():
     }
     
     # Should pass - token has all required claims
-    result = service.rbac.check_rbac(token, required_claims, 'execute')
+    result = RBACAuthorizer.check_rbac(token, required_claims, 'execute')
     assert result is True
 
 
@@ -428,7 +428,7 @@ def test_rbac_partial_claims_fails():
     
     # Should fail - missing 'level' claim
     with pytest.raises(HTTPForbidden):
-        service.rbac.check_rbac(token, required_claims, 'execute')
+        RBACAuthorizer.check_rbac(token, required_claims, 'execute')
 
 
 # ============================================================================
@@ -546,7 +546,7 @@ def test_load_runbook_empty_content():
         f.write('')
     
     try:
-        content, name, errors, warnings = service.parser.load_runbook(empty_path)
+        content, name, errors, warnings = RunbookParser.load_runbook(empty_path)
         assert content == '', "Should return empty content"
         assert name is None, "Should return None name for empty content"
         assert len(errors) > 0, "Should have errors for empty content"
@@ -560,7 +560,7 @@ def test_extract_section_none_content():
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = service.parser.extract_section(None, 'Documentation')
+    result = RunbookParser.extract_section(None, 'Documentation')
     assert result is None, "Should return None for None content"
 
 
@@ -569,7 +569,7 @@ def test_extract_section_empty_content():
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = service.parser.extract_section('', 'Documentation')
+    result = RunbookParser.extract_section('', 'Documentation')
     assert result is None, "Should return None for empty content"
 
 
@@ -578,7 +578,7 @@ def test_extract_yaml_block_none():
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = service.parser.extract_yaml_block(None)
+    result = RunbookParser.extract_yaml_block(None)
     assert result is None, "Should return None for None content"
 
 
@@ -587,7 +587,7 @@ def test_extract_yaml_block_empty():
     runbooks_dir = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = service.parser.extract_yaml_block('')
+    result = RunbookParser.extract_yaml_block('')
     assert result is None, "Should return None for empty content"
 
 
@@ -604,7 +604,7 @@ TEST_VAR: |
 ANOTHER_VAR: "Single line value"
 ```"""
     
-    result = service.parser.extract_yaml_block(yaml_content)
+    result = RunbookParser.extract_yaml_block(yaml_content)
     assert result is not None, "Should extract YAML with multi-line values"
     assert 'TEST_VAR' in result, "Should find TEST_VAR"
     assert '\n' in result['TEST_VAR'], "Multi-line value should preserve newlines"
@@ -623,7 +623,7 @@ TEST_VAR: test_value
 ANOTHER_VAR: another_value
 ```"""
     
-    result = service.parser.extract_yaml_block(yaml_content)
+    result = RunbookParser.extract_yaml_block(yaml_content)
     assert result is not None, "Should extract YAML with comments"
     assert 'TEST_VAR' in result, "Should find TEST_VAR (comments should be ignored)"
     assert result['TEST_VAR'] == 'test_value', "Should extract correct value"
@@ -641,7 +641,7 @@ PATH_VAR: /path/to/file:with:colons
 JSON_VAR: '{"key": "value"}'
 ```"""
     
-    result = service.parser.extract_yaml_block(yaml_content)
+    result = RunbookParser.extract_yaml_block(yaml_content)
     assert result is not None, "Should extract YAML with special characters"
     assert 'TEST_VAR' in result, "Should find TEST_VAR"
     assert 'colon' in result['TEST_VAR'], "Should preserve special characters"
@@ -659,7 +659,7 @@ TEST_VAR: "unclosed quote
 ANOTHER_VAR: value
 ```"""
     
-    result = service.parser.extract_yaml_block(yaml_content)
+    result = RunbookParser.extract_yaml_block(yaml_content)
     # Should return None on parse error
     assert result is None, "Should return None for invalid YAML"
 
@@ -672,7 +672,7 @@ def test_extract_yaml_block_empty_yaml_block():
     yaml_content = """```yaml
 ```"""
     
-    result = service.parser.extract_yaml_block(yaml_content)
+    result = RunbookParser.extract_yaml_block(yaml_content)
     assert result == {}, "Should return empty dict for empty YAML block"
 
 
@@ -812,8 +812,8 @@ Output:
         f.write(runbook_content)
     
     try:
-        script = service.parser.extract_script(runbook_content)
-        return_code, stdout, stderr = service.executor.execute_script(script)
+        script = RunbookParser.extract_script(runbook_content)
+        return_code, stdout, stderr = ScriptExecutor.execute_script(script)
         # Empty script should still execute (just return 0)
         assert return_code == 0 or return_code == 1, "Empty script should execute"
     finally:
@@ -831,7 +831,7 @@ def test_temp_directory_isolation():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
@@ -841,8 +841,8 @@ def test_temp_directory_isolation():
             mock_temp_dir = '/tmp/runbook-exec-test123'
             mock_mkdtemp.return_value = mock_temp_dir
             
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script)
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
             # Verify mkdtemp was called with correct prefix
             mock_mkdtemp.assert_called_once()
@@ -884,8 +884,8 @@ exit 1
         f.write(runbook_content)
     
     try:
-        script = service.parser.extract_script(runbook_content)
-        return_code, stdout, stderr = service.executor.execute_script(script)
+        script = RunbookParser.extract_script(runbook_content)
+        return_code, stdout, stderr = ScriptExecutor.execute_script(script)
         
         # Temp directory should be cleaned up - verify by checking it doesn't exist
         # We can't directly check, but we can verify cleanup logic is called
@@ -901,7 +901,7 @@ def test_file_permissions_on_temp_script():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
@@ -909,8 +909,8 @@ def test_file_permissions_on_temp_script():
         import stat
         
         with patch('services.runbook_service.os.chmod') as mock_chmod:
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script)
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
             # Verify chmod was called with 0o700 (owner-only permissions)
             mock_chmod.assert_called_once()
@@ -975,7 +975,7 @@ def test_invalid_env_var_name_rejected():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
@@ -992,8 +992,8 @@ def test_invalid_env_var_name_rejected():
         ]
         
         for invalid_name in invalid_names:
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script, env_vars={invalid_name: 'value'})
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={invalid_name: 'value'})
             assert return_code != 0, f"Should reject invalid env var name: {invalid_name}"
             assert "Invalid environment variable name" in stderr or "ERROR" in stderr, \
                 f"Should return error for invalid name: {invalid_name}"
@@ -1009,7 +1009,7 @@ def test_valid_env_var_names_accepted():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
@@ -1025,8 +1025,8 @@ def test_valid_env_var_names_accepted():
         ]
         
         for valid_name in valid_names:
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script, env_vars={valid_name: 'test_value'})
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={valid_name: 'test_value'})
             # Should not fail due to invalid name (may fail for other reasons like missing env)
             assert "Invalid environment variable name" not in stderr, \
                 f"Should accept valid env var name: {valid_name}"
@@ -1070,8 +1070,8 @@ echo "Value: ${TEST_VAR}"
         
         # Value with control characters
         value_with_control = 'test\x00\x01\x02value'
-        script = service.parser.extract_script(runbook_content)
-        return_code, stdout, stderr = service.executor.execute_script(script, env_vars={'TEST_VAR': value_with_control})
+        script = RunbookParser.extract_script(runbook_content)
+        return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': value_with_control})
         
         # Should execute (control chars removed but script should run)
         # The value should be sanitized
@@ -1121,9 +1121,9 @@ echo "${TEST_VAR}" | wc -l
         value_with_newlines = 'line1\nline2\nline3'
         value_with_tabs = 'col1\tcol2\tcol3'
         
-        return_code1, stdout1, stderr1 = script = service.parser.extract_script(runbook_content); return_code, stdout, stderr = service.executor.execute_script(script, env_vars={'TEST_VAR': value_with_newlines})
+        return_code1, stdout1, stderr1 = script = RunbookParser.extract_script(runbook_content); return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': value_with_newlines})
         
-        return_code2, stdout2, stderr2 = script = service.parser.extract_script(runbook_content); return_code, stdout, stderr = service.executor.execute_script(script, env_vars={'TEST_VAR': value_with_tabs})
+        return_code2, stdout2, stderr2 = script = RunbookParser.extract_script(runbook_content); return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': value_with_tabs})
         
         # Should execute successfully
         assert return_code1 == 0 or "ERROR" not in stderr1, \
@@ -1144,13 +1144,13 @@ def test_env_var_none_value_converted():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
     try:
-        script = service.parser.extract_script(content)
-        return_code, stdout, stderr = service.executor.execute_script(script, env_vars={'TEST_VAR': None})
+        script = RunbookParser.extract_script(content)
+        return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': None})
         
         # Should not fail due to None value (it should be converted)
         assert "None" not in stderr or "ERROR: Invalid" not in stderr, \
@@ -1167,7 +1167,7 @@ def test_env_var_non_string_value_converted():
     service = RunbookService(runbooks_dir)
     
     runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    content, name, errors, warnings = service.parser.load_runbook(runbook_path)
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
@@ -1176,8 +1176,8 @@ def test_env_var_non_string_value_converted():
         non_string_values = [123, 45.67, True, False, ['list'], {'dict': 'value'}]
         
         for non_string_value in non_string_values:
-            script = service.parser.extract_script(content)
-            return_code, stdout, stderr = service.executor.execute_script(script, env_vars={'TEST_VAR': non_string_value})
+            script = RunbookParser.extract_script(content)
+            return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': non_string_value})
             # Should not fail - should be converted to string
             assert "ERROR: Invalid" not in stderr or "type" not in stderr.lower(), \
                 f"Non-string value {type(non_string_value)} should be converted to string"

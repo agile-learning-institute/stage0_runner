@@ -52,13 +52,7 @@ class RunbookService:
             runbooks_dir: Path to directory containing runbooks
         """
         self.runbooks_dir = Path(runbooks_dir).resolve()
-        
-        # Initialize components
-        self.parser = RunbookParser()
-        self.validator = RunbookValidator(self.parser)
-        self.executor = ScriptExecutor()
-        self.history = HistoryManager()
-        self.rbac = RBACAuthorizer(self.parser)
+        self.config = Config.get_instance()
     
     def _resolve_runbook_path(self, filename: str) -> Path:
         """Get full path to a runbook file (with security check)."""
@@ -89,16 +83,16 @@ class RunbookService:
         
         try:
             # Load runbook
-            content, name, load_errors, load_warnings = self.parser.load_runbook(runbook_path)
+            content, name, load_errors, load_warnings = RunbookParser.load_runbook(runbook_path)
             if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract required claims and check RBAC
-            required_claims = self.rbac.extract_required_claims(content)
-            self.rbac.check_rbac(token, required_claims, 'validate')
+            required_claims = RBACAuthorizer.extract_required_claims(content)
+            RBACAuthorizer.check_rbac(token, required_claims, 'validate')
             
             # Perform validation
-            success, errors, warnings = self.validator.validate_runbook_content(runbook_path, content)
+            success, errors, warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
             errors.extend(load_errors)
             warnings.extend(load_warnings)
             
@@ -113,7 +107,7 @@ class RunbookService:
             # Log RBAC failure to runbook history
             try:
                 config = Config.get_instance()
-                self.history.append_rbac_failure_history(
+                HistoryManager.append_rbac_failure_history(
                     runbook_path, 
                     str(e), 
                     token.get('user_id', 'unknown'), 
@@ -157,28 +151,28 @@ class RunbookService:
         
         try:
             # Load runbook
-            content, name, load_errors, load_warnings = self.parser.load_runbook(runbook_path)
+            content, name, load_errors, load_warnings = RunbookParser.load_runbook(runbook_path)
             if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract required claims and check RBAC
-            required_claims = self.rbac.extract_required_claims(content)
-            self.rbac.check_rbac(token, required_claims, 'execute')
+            required_claims = RBACAuthorizer.extract_required_claims(content)
+            RBACAuthorizer.check_rbac(token, required_claims, 'execute')
             
             # Validate runbook before execution (fail-fast)
-            validation_success, validation_errors, validation_warnings = self.validator.validate_runbook_content(runbook_path, content)
+            validation_success, validation_errors, validation_warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
             if not validation_success:
                 # Return validation errors as execution failure
                 error_msg = "\n".join(validation_errors)
                 return_code, stdout, stderr = 1, "", error_msg
             else:
                 # Extract script and execute
-                script = self.parser.extract_script(content)
+                script = RunbookParser.extract_script(content)
                 if not script:
                     raise HTTPInternalServerError("Could not extract script from runbook")
                 
                 # Execute the script
-                return_code, stdout, stderr = self.executor.execute_script(script, env_vars)
+                return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars)
             finish_time = datetime.now(timezone.utc)
             
             # Collect errors/warnings for history
@@ -188,7 +182,7 @@ class RunbookService:
             warnings.extend(load_warnings)
             
             # Append history
-            self.history.append_history(
+            HistoryManager.append_history(
                 runbook_path,
                 start_time,
                 finish_time,
@@ -208,7 +202,7 @@ class RunbookService:
                 updated_content = f.read()
             
             # Parse last history entry for stdout/stderr
-            parsed_stdout, parsed_stderr = self.parser.parse_last_history_entry(updated_content)
+            parsed_stdout, parsed_stderr = RunbookParser.parse_last_history_entry(updated_content)
             
             return {
                 "success": return_code == 0,
@@ -224,10 +218,10 @@ class RunbookService:
             finish_time = datetime.now(timezone.utc)
             # Log RBAC failure to runbook history
             try:
-                self.history.append_rbac_failure_history(
-                    runbook_path,
-                    str(e),
-                    token.get('user_id', 'unknown'),
+                HistoryManager.append_rbac_failure_history(
+                    runbook_path, 
+                    str(e), 
+                    token.get('user_id', 'unknown'), 
                     'execute',
                     token,
                     breadcrumb,
@@ -259,7 +253,7 @@ class RunbookService:
         runbooks = []
         for file_path in self.runbooks_dir.glob('*.md'):
             try:
-                content, name, errors, warnings = self.parser.load_runbook(file_path)
+                content, name, errors, warnings = RunbookParser.load_runbook(file_path)
                 if content and name:
                     runbooks.append({
                         "filename": file_path.name,
@@ -338,12 +332,12 @@ class RunbookService:
             raise HTTPNotFound(f"Runbook not found: {filename}")
         
         try:
-            content, name, errors, warnings = self.parser.load_runbook(runbook_path)
+            content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
             if not content:
                 raise HTTPInternalServerError("Failed to load runbook")
             
             # Extract environment requirements
-            env_section = self.parser.extract_section(content, 'Environment Requirements')
+            env_section = RunbookParser.extract_section(content, 'Environment Requirements')
             if not env_section:
                 return {
                     "success": True,
@@ -353,7 +347,7 @@ class RunbookService:
                     "missing": []
                 }
             
-            env_vars = self.parser.extract_yaml_block(env_section)
+            env_vars = RunbookParser.extract_yaml_block(env_section)
             if env_vars is None:
                 return {
                     "success": True,

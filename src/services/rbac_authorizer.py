@@ -22,16 +22,8 @@ class RBACAuthorizer:
     - Raising HTTPForbidden on authorization failures
     """
     
-    def __init__(self, parser: RunbookParser):
-        """
-        Initialize the authorizer.
-        
-        Args:
-            parser: RunbookParser instance for extracting required claims
-        """
-        self.parser = parser
-    
-    def extract_required_claims(self, content: str) -> Optional[Dict[str, List[str]]]:
+    @staticmethod
+    def extract_required_claims(content: str) -> Optional[Dict[str, List[str]]]:
         """
         Extract required claims from runbook content.
         
@@ -41,9 +33,10 @@ class RBACAuthorizer:
         Returns:
             Dictionary of required claims (claim_name -> list of allowed values), or None
         """
-        return self.parser.extract_required_claims(content)
+        return RunbookParser.extract_required_claims(content)
     
-    def check_rbac(self, token: Dict, required_claims: Optional[Dict[str, List[str]]], operation: str) -> bool:
+    @staticmethod
+    def check_rbac(token: Dict, required_claims: Optional[Dict[str, List[str]]], operation: str) -> bool:
         """
         Check if the token has the required claims for the operation.
         

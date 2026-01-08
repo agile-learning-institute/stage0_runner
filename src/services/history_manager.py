@@ -22,7 +22,8 @@ class HistoryManager:
     - Logging history entries
     """
     
-    def append_history(self, runbook_path: Path, start_time: datetime, finish_time: datetime, 
+    @staticmethod
+    def append_history(runbook_path: Path, start_time: datetime, finish_time: datetime, 
                       return_code: int, operation: str, stdout: str, stderr: str, 
                       token: Dict, breadcrumb: Dict, config_items: List[Dict], 
                       errors: List[str] = None, warnings: List[str] = None) -> None:
@@ -86,7 +87,8 @@ class HistoryManager:
         with open(runbook_path, 'a', encoding='utf-8') as f:
             f.write('\n' + minified_json)
     
-    def append_rbac_failure_history(self, runbook_path: Path, error_message: str, 
+    @staticmethod
+    def append_rbac_failure_history(runbook_path: Path, error_message: str, 
                                    user_id: str, operation: str, token: Dict, 
                                    breadcrumb: Dict, config_items: List[Dict]) -> None:
         """

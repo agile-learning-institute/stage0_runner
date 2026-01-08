@@ -36,7 +36,8 @@ class ScriptExecutor:
     - Resource cleanup
     """
     
-    def execute_script(self, script: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
+    @staticmethod
+    def execute_script(script: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
         """
         Execute a script with resource limits (timeout, output size).
         

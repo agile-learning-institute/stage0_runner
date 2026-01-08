@@ -25,7 +25,8 @@ class RunbookParser:
     - Parsing history entries
     """
     
-    def load_runbook(self, runbook_path: Path) -> Tuple[Optional[str], Optional[str], List[str], List[str]]:
+    @staticmethod
+    def load_runbook(runbook_path: Path) -> Tuple[Optional[str], Optional[str], List[str], List[str]]:
         """
         Load a runbook file and extract basic information.
         
@@ -65,7 +66,8 @@ class RunbookParser:
             errors.append(f"Error reading runbook file: {e}")
             return None, None, errors, warnings
     
-    def extract_section(self, content: str, section_name: str) -> Optional[str]:
+    @staticmethod
+    def extract_section(content: str, section_name: str) -> Optional[str]:
         """Extract content of a specific H1 section."""
         if not content:
             return None
@@ -93,7 +95,8 @@ class RunbookParser:
         
         return section_content
     
-    def extract_yaml_block(self, section_content: str) -> Optional[Dict[str, str]]:
+    @staticmethod
+    def extract_yaml_block(section_content: str) -> Optional[Dict[str, str]]:
         """
         Extract YAML from a code block in section content using PyYAML.
         
@@ -142,14 +145,15 @@ class RunbookParser:
             logger.error(f"Unexpected error parsing YAML block: {e}", exc_info=True)
             return None
     
-    def extract_required_claims(self, content: str) -> Optional[Dict[str, List[str]]]:
+    @staticmethod
+    def extract_required_claims(content: str) -> Optional[Dict[str, List[str]]]:
         """Extract required claims from Required Claims section."""
-        claims_section = self.extract_section(content, 'Required Claims')
+        claims_section = RunbookParser.extract_section(content, 'Required Claims')
         if not claims_section:
             return None
         
         # Extract YAML block
-        yaml_block = self.extract_yaml_block(claims_section)
+        yaml_block = RunbookParser.extract_yaml_block(claims_section)
         if not yaml_block:
             return None
         
@@ -169,7 +173,8 @@ class RunbookParser:
         
         return required_claims if required_claims else None
     
-    def extract_file_requirements(self, section_content: str) -> Dict[str, List[str]]:
+    @staticmethod
+    def extract_file_requirements(section_content: str) -> Dict[str, List[str]]:
         """
         Extract file system requirements from YAML block using PyYAML.
         
@@ -230,9 +235,10 @@ class RunbookParser:
             logger.error(f"Unexpected error parsing file requirements YAML: {e}", exc_info=True)
             return requirements
     
-    def extract_script(self, content: str) -> Optional[str]:
+    @staticmethod
+    def extract_script(content: str) -> Optional[str]:
         """Extract the shell script from the Script section."""
-        script_section = self.extract_section(content, 'Script')
+        script_section = RunbookParser.extract_section(content, 'Script')
         if not script_section:
             return None
         
@@ -242,7 +248,8 @@ class RunbookParser:
             return match.group(1).strip()
         return None
     
-    def parse_last_history_entry(self, content: str) -> Tuple[str, str]:
+    @staticmethod
+    def parse_last_history_entry(content: str) -> Tuple[str, str]:
         """
         Parse the last history JSON entry from runbook content.
         

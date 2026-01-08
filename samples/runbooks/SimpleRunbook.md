@@ -80,3 +80,30 @@ SimpleRunbook completed successfully
 ```
 
 ```
+
+## 2026-01-08t00:55:31.203
+- Completed: 2026-01-08t00:55:31.209
+- Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: Test
+Current directory: /workspace
+Listing files:
+total 24
+drwxr-xr-x 7 root root  224 Jan  8 00:55 .
+drwxr-xr-x 1 root root 4096 Jan  8 00:54 ..
+-rw-r--r-- 1 root root  122 Jan  7 22:12 CreatePackage.dockerfile
+-rw-r--r-- 1 root root  805 Jan  7 22:12 CreatePackage.md
+-rw-r--r-- 1 root root  277 Jan  7 22:12 Runbook.md
+-rw-r--r-- 1 root root 1858 Jan  8 00:43 SimpleRunbook.md
+-rwxr-xr-x 1 root root  195 Jan  8 00:55 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```

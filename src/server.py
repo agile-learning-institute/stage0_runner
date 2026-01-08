@@ -225,6 +225,11 @@ def create_app(runbooks_dir: str):
             "runbooks": sorted(runbooks, key=lambda x: x['filename'])
         })
     
+    @app.route('/api/<path:runbook>/required-env', methods=['GET'])
+    def get_required_env_by_path(runbook: str):
+        """Get required environment variables for a runbook (path-based endpoint)."""
+        return get_required_env_impl(runbook)
+    
     @app.route('/api/<path:runbook>', methods=['GET'])
     def get_runbook_by_path(runbook: str):
         """Get runbook content (path-based endpoint)."""
@@ -234,6 +239,77 @@ def create_app(runbooks_dir: str):
     def get_runbook(filename: str):
         """Get runbook content (legacy endpoint)."""
         return get_runbook_impl(filename)
+    
+    def get_required_env_impl(filename: str):
+        """Get required environment variables that are not set."""
+        runbook_path = resolve_runbook_path(filename)
+        if not runbook_path.exists():
+            return jsonify({
+                "success": False,
+                "error": f"Runbook not found: {filename}"
+            }), 404
+        
+        try:
+            runner = RunbookRunner(str(runbook_path))
+            if not runner.load_runbook():
+                return jsonify({
+                    "success": False,
+                    "error": "Failed to load runbook",
+                    "filename": filename
+                }), 500
+            
+            # Extract environment requirements
+            env_section = runner.extract_section('Environment Requirements')
+            if not env_section:
+                return jsonify({
+                    "success": True,
+                    "filename": filename,
+                    "required": [],
+                    "available": [],
+                    "missing": []
+                })
+            
+            env_vars = runner.extract_yaml_block(env_section)
+            if env_vars is None:
+                return jsonify({
+                    "success": True,
+                    "filename": filename,
+                    "required": [],
+                    "available": [],
+                    "missing": []
+                })
+            
+            # Check which variables are set in the environment
+            required = []
+            available = []
+            missing = []
+            
+            for var_name, description in env_vars.items():
+                var_info = {
+                    "name": var_name,
+                    "description": description
+                }
+                required.append(var_info)
+                
+                if var_name in os.environ and os.environ[var_name]:
+                    available.append(var_info)
+                else:
+                    missing.append(var_info)
+            
+            return jsonify({
+                "success": True,
+                "filename": filename,
+                "required": required,
+                "available": available,
+                "missing": missing
+            })
+            
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": str(e),
+                "filename": filename
+            }), 500
     
     def get_runbook_impl(filename: str):
         """Get runbook content implementation."""

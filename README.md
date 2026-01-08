@@ -1,15 +1,15 @@
 # Stage0 Runbook Runner
 
-This repository contains the `stage0_runner` utility which is used to execute Runbooks. 
+This repository contains the `stage0_runbook_api` utility which is used to execute Runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
 
 ## Quick Start
 A Runbook is a markdown file that describes a (automated) task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./samples/runbooks/Runbook.md) runbook, and a [Simple Example](./samples/runbooks/SimpleRunbook.md) runbook. See the [Makefile](./Makefile) for examples of using the utility container to validate or execute a Runbook.
 
 ```sh
-# Validate runbook using the containerized utility
+# Validate a runbook using the containerized utility
 RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make validate
 
-# Execute runbook using the containerized utility
+# Execute a runbook using the containerized utility
 RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make execute
 ```
 

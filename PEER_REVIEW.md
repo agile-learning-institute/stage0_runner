@@ -671,10 +671,10 @@ No limit on request body size. Large JSON payloads could consume excessive memor
 - [x] Test file operations (permissions, errors) - **Completed: Temp directory isolation, cleanup, permissions, path resolution tests**
 
 ### Integration Tests
-- [ ] Test all API endpoints end-to-end
-- [ ] Test authentication/authorization flows
-- [ ] Test concurrent execution scenarios
-- [ ] Test error response formats
+- [x] Test all API endpoints end-to-end - **Completed: test_e2e.py with comprehensive e2e tests covering all endpoints**
+- [x] Test authentication/authorization flows - **Completed: test_e2e_authentication_flow and test_e2e_rbac_authorization_flow**
+- [x] Test concurrent execution scenarios - **Completed: test_e2e_concurrent_list_requests and test_e2e_concurrent_executions**
+- [x] Test error response formats - **Completed: test_e2e_error_response_format_* for 401, 403, 404, 400 errors**
 
 ### Security Tests
 - [x] Test path traversal attempts - **Completed: Multiple path traversal attack vectors tested**

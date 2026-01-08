@@ -17,6 +17,7 @@ pytest = "*"
 
 [scripts]
 test = "pytest test/"
+e2e = "pytest test/test_e2e.py -v"
 
 [requires]
 python_version = "3.12"

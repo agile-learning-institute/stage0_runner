@@ -298,8 +298,8 @@ def main():
     parser.add_argument(
         '--port',
         type=int,
-        default=int(os.environ.get('API_PORT', '5000')),
-        help='Port for API server (default: 5000, or API_PORT env var)'
+        default=int(os.environ.get('API_PORT', '8083')),
+        help='Port for API server (default: 8083, or API_PORT env var)'
     )
     parser.add_argument(
         '--runbooks-dir',

@@ -25,7 +25,11 @@ def create_app(runbooks_dir: str):
     Returns:
         Flask application instance
     """
-    app = Flask(__name__, static_folder='../docs', static_url_path='/docs')
+    # Determine static folder path (works for both dev and production)
+    # In container: /opt/stage0/runner/src/server.py -> /opt/stage0/runner/docs
+    # In dev: ./src/server.py -> ./docs
+    static_folder_path = Path(__file__).parent.parent / 'docs'
+    app = Flask(__name__, static_folder=str(static_folder_path), static_url_path='/docs')
     runbooks_path = Path(runbooks_dir).resolve()
     
     def resolve_runbook_path(filename: str) -> Path:
@@ -83,7 +87,7 @@ def create_app(runbooks_dir: str):
             runner.load_runbook()
             
             # Build viewer link (for SPA integration - adjust URL based on your SPA deployment)
-            port = os.environ.get('API_PORT', '5000')
+            port = os.environ.get('API_PORT', '8083')
             host = request.host.split(':')[0]  # Get host without port
             # Note: This link should point to your SPA frontend, not a built-in viewer
             viewer_link = f"http://{host}:{port}/runbook/{runbook_filename}"
@@ -261,4 +265,10 @@ def create_app(runbooks_dir: str):
             }), 500
     
     return app
+
+
+# Create app instance for Gunicorn (uses RUNBOOKS_DIR environment variable)
+# This allows Gunicorn to use: gunicorn src.server:app
+runbooks_dir = os.environ.get('RUNBOOKS_DIR', '.')
+app = create_app(runbooks_dir)
 

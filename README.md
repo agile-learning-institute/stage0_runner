@@ -36,8 +36,8 @@ export RUNBOOK=./samples/runbooks/SimpleRunbook.md
 export TEST_VAR=test_value
 pipenv run validate
 
-# Start the API server (default port 5000)
-export API_PORT=8080
+# Start the API server (default port 8083)
+export API_PORT=8083
 export RUNBOOKS_DIR=./samples
 pipenv run serve
 
@@ -70,13 +70,13 @@ The `runbook serve` command starts a Flask web server that provides:
 ### Sample curl commands - see the API Explorer for more details
 ```sh
 ## Execute a runbook POST 
-curl -X POST "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+curl -X POST "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
 
 ## Validate a runbook PATCH 
-curl -X PATCH "http://localhost:5000/api/SimpleRunbook.md?TEST_VAR=test_value"
+curl -X PATCH "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
 
 ## Get a Runbook Markdown File
-curl -X GET "http://localhost:5000/api/SimpleRunbook.md"
+curl -X GET "http://localhost:8083/api/SimpleRunbook.md"
 ```
 
 ### API Explorer
@@ -91,8 +91,8 @@ The OpenAPI specification is available at `/docs/openapi.yaml`.
 
 **Access the explorer:**
 ```
-http://localhost:5000/docs/explorer.html
-http://localhost:5000/docs/openapi.yaml
+http://localhost:8083/docs/explorer.html
+http://localhost:8083/docs/openapi.yaml
 ```
 
 ### Frontend Integration

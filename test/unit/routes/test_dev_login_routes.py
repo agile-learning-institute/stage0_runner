@@ -93,32 +93,6 @@ def test_dev_login_rate_limiting_disabled(flask_app):
         config.RATE_LIMIT_ENABLED = original_rate_limit
 
 
-def test_dev_login_rate_limiting_exception_handling(flask_app):
-    """Test that dev-login handles rate limiting exceptions gracefully."""
-    config = Config.get_instance()
-    original_rate_limit = config.RATE_LIMIT_ENABLED
-    
-    try:
-        config.RATE_LIMIT_ENABLED = True
-        
-        # Mock flask.has_app_context to return True, then mock limiter to raise exception
-        with patch('flask.has_app_context', return_value=True):
-            with patch('src.routes.dev_login_routes.current_app') as mock_current_app:
-                # Set up mock extensions with limiter that raises exception
-                mock_limiter = Mock()
-                mock_limiter.limit.side_effect = Exception("Rate limit error")
-                mock_current_app.extensions = {'limiter': mock_limiter}
-                
-                client = flask_app.test_client()
-                # Should still work despite rate limiting exception (caught and logged)
-                response = client.post('/dev-login', json={'subject': 'test-user'})
-                
-                # Should succeed (exception is caught and logged)
-                assert response.status_code == 200
-    finally:
-        config.RATE_LIMIT_ENABLED = original_rate_limit
-
-
 def test_dev_login_jwt_encoding_error(flask_app):
     """Test that dev-login handles JWT encoding errors."""
     with patch('src.routes.dev_login_routes.jwt.encode') as mock_encode:

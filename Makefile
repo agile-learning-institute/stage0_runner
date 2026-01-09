@@ -48,14 +48,18 @@ validate:
 	fi; \
 	FILENAME=$$(basename $(RUNBOOK)); \
 	if [ -n "$(ENV)" ]; then \
-		QUERY="?$$(echo '$(ENV)' | sed 's/ /\\&/g')"; \
+		ENV_JSON=$$(echo '$(ENV)' | tr ' ' '\n' | awk -F= '{printf "{\"key\":\"%s\",\"value\":\"%s\"}\n", $$1, $$2}' | jq -s 'map({(.key): .value}) | add'); \
+		curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-H "Content-Type: application/json" \
+			-d "{\"env_vars\":$$ENV_JSON}" \
+			| jq '.' || cat; \
 	else \
-		QUERY=""; \
-	fi; \
-	curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME$$QUERY" \
-		-H "Authorization: Bearer $$TOKEN" \
-		-H "Content-Type: application/json" \
-		| jq '.' || cat
+		curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-H "Content-Type: application/json" \
+			| jq '.' || cat; \
+	fi
 
 execute:
 	@if [ -z "$(RUNBOOK)" ]; then \
@@ -70,14 +74,18 @@ execute:
 	fi; \
 	FILENAME=$$(basename $(RUNBOOK)); \
 	if [ -n "$(ENV)" ]; then \
-		QUERY="?$$(echo '$(ENV)' | sed 's/ /\\&/g')"; \
+		ENV_JSON=$$(echo '$(ENV)' | tr ' ' '\n' | awk -F= '{printf "{\"key\":\"%s\",\"value\":\"%s\"}\n", $$1, $$2}' | jq -s 'map({(.key): .value}) | add'); \
+		curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-H "Content-Type: application/json" \
+			-d "{\"env_vars\":$$ENV_JSON}" \
+			| jq '.' || cat; \
 	else \
-		QUERY=""; \
-	fi; \
-	curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME$$QUERY" \
-		-H "Authorization: Bearer $$TOKEN" \
-		-H "Content-Type: application/json" \
-		| jq '.' || cat
+		curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-H "Content-Type: application/json" \
+			| jq '.' || cat; \
+	fi
 
 # Start API server with local runbooks mounted (for runbook authors)
 api:

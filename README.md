@@ -11,16 +11,16 @@ A Runbook is just a markdown file that describes an automated task. You can crea
 The Makefile provides simple curl-based commands for testing runbooks without requiring Python:
 
 ```sh
-# Start API server with local runbooks mounted (run in one terminal)
+# Start API server with local runbooks mounted 
 make api
 
-# Validate a runbook
+# Validate a runbook (assumes API is running)
 make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
 
-# Execute a runbook with environment variables
+# Execute a runbook with environment variables (assumes API is running)
 make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'
 
-# Open web UI in browser
+# Open web UI in browser (assumes API and SPA are running)
 make open
 
 # Stop the API server
@@ -172,47 +172,16 @@ For comprehensive production deployment documentation, including deployment opti
 
 ```
 .
-├── Dockerfile                      # Base Docker configuration
-├── docker-compose.yaml            # Docker Compose configuration
 ├── samples/                       # Sample Dockerfiles and example runbooks
-│   ├── Dockerfile.extended        # Extended image with Docker CLI and GitHub CLI
-│   ├── Dockerfile.with-runbooks   # Image with packaged runbooks collection
-│   ├── Dockerfile.extended-with-runbooks # Combined: tools + runbooks
-│   └── runbooks/                  # Example runbooks
-│       ├── SimpleRunbook.md
-│       ├── CreatePackage.md
-│       └── CreatePackage.dockerfile
-├── Makefile                       # Make targets for container operations
-├── Pipfile                        # Python dependencies (pipenv)
-├── README.md                      # This file
-├── RUNBOOK.md                     # Runbook format specification
-├── docs/
-│   ├── explorer.html              # API Explorer (Swagger UI)
-│   ├── history-schema.json        # JSON schema for history entries
-│   └── openapi.yaml               # OpenAPI specification
+├── docs/                          # API Explorer, OpenAPI, History Schema
 ├── src/
 │   ├── config/                    # Configuration management
-│   │   └── config.py
 │   ├── flask_utils/               # Flask utilities
-│   │   ├── token.py               # JWT token handling
-│   │   ├── exceptions.py          # HTTP exceptions
-│   │   ├── route_wrapper.py       # Exception handling decorator
-│   │   └── breadcrumb.py          # Request breadcrumbs
 │   ├── routes/                    # API route blueprints
-│   │   ├── config_routes.py
-│   │   ├── dev_login_routes.py
-│   │   ├── explorer_routes.py
-│   │   ├── metric_routes.py
-│   │   ├── runbook_routes.py
-│   │   └── shutdown_routes.py
 │   ├── services/                  # Business logic layer
-│   │   ├── runbook_service.py     # Runbook service (orchestrator)
-│   │   ├── runbook_parser.py      # Markdown parsing
-│   │   ├── runbook_validator.py   # Runbook validation
-│   │   ├── script_executor.py     # Script execution
-│   │   ├── history_manager.py     # History management
-│   │   └── rbac_authorizer.py     # RBAC authorization
 │   └── server.py                  # Flask application factory
 └── test/
-    └── test_runbook_service.py    # Unit tests for the service
+    ├── e2e/                       # End 2 End testing
+    ├── integration/               # Integration testing
+    ├── unit/                      # Unit testing
 ```

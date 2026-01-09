@@ -165,24 +165,16 @@ def create_runbook_routes(runbooks_dir: str):
                 }
             }
             
-        Query parameters (optional):
-            - Any query parameters will be treated as environment variables
-            
         Returns:
             JSON response with execution result
         """
         token = create_flask_token()
         breadcrumb = create_flask_breadcrumb(token)
         
-        # Extract environment variables from request body or query parameters
+        # Extract environment variables from request body
         env_vars = {}
         if request.is_json and request.json:
             env_vars.update(request.json.get('env_vars', {}))
-        
-        # Also allow env vars from query parameters (for backward compatibility)
-        for key, value in request.args.items():
-            if key not in ['RUNBOOK']:  # Skip special parameters
-                env_vars[key] = value
         
         result = runbook_service.execute_runbook(filename, token, breadcrumb, env_vars)
         logger.info(f"execute_runbook Success {str(breadcrumb['at_time'])}, {breadcrumb['correlation_id']}")

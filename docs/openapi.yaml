@@ -6,10 +6,16 @@ info:
     Runbooks are markdown files that describe automated tasks with executable scripts.
     
     ## Environment Variables
-    Environment variables required by runbooks can be passed as query parameters.
+    Environment variables required by runbooks should be passed in the request body as JSON.
     For example, to execute a runbook that requires `TEST_VAR`, use:
     ```
-    POST /api/SimpleRunbook.md?TEST_VAR=test_value
+    POST /api/runbooks/SimpleRunbook.md
+    Content-Type: application/json
+    {
+      "env_vars": {
+        "TEST_VAR": "test_value"
+      }
+    }
     ```
   version: 0.1.0
   contact:
@@ -79,7 +85,7 @@ paths:
       summary: Execute a runbook
       description: |
         Execute a runbook script. The runbook file is identified by the path parameter.
-        Environment variables required by the runbook can be passed as query parameters.
+        Environment variables required by the runbook should be passed in the request body as JSON.
         
         Execution will:
         1. Validate the runbook
@@ -95,6 +101,16 @@ paths:
           schema:
             type: string
             example: SimpleRunbook.md
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+            example:
+              env_vars:
+                TEST_VAR: test_value
+                ANOTHER_VAR: another_value
       responses:
         '200':
           description: Runbook executed successfully
@@ -123,7 +139,10 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X POST "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
+            curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+              -H "Authorization: Bearer YOUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"env_vars":{"TEST_VAR":"test_value"}}'
 
     patch:
       tags:
@@ -136,7 +155,7 @@ paths:
         - Environment variables are set
         - File system requirements are met
         
-        Environment variables can be passed as query parameters for validation.
+        Environment variables can be passed in the request body as JSON for validation.
       operationId: validateRunbook
       parameters:
         - name: runbook
@@ -146,6 +165,15 @@ paths:
           schema:
             type: string
             example: SimpleRunbook.md
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+            example:
+              env_vars:
+                TEST_VAR: test_value
       responses:
         '200':
           description: Runbook is valid
@@ -174,7 +202,10 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X PATCH "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
+            curl -X PATCH "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+              -H "Authorization: Bearer YOUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"env_vars":{"TEST_VAR":"test_value"}}'
 
     get:
       tags:
@@ -243,6 +274,31 @@ paths:
 
 components:
   schemas:
+    ExecuteRequest:
+      type: object
+      properties:
+        env_vars:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables to set for script execution
+          example:
+            TEST_VAR: test_value
+            ANOTHER_VAR: another_value
+      description: Request body for executing a runbook
+
+    ValidateRequest:
+      type: object
+      properties:
+        env_vars:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables to use for validation
+          example:
+            TEST_VAR: test_value
+      description: Request body for validating a runbook
+
     ExecuteResponse:
       type: object
       required:

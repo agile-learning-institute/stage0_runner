@@ -73,7 +73,7 @@ def flask_app():
     
     # Set test environment
     os.environ['ENABLE_LOGIN'] = 'true'
-    os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent / 'samples' / 'runbooks')
+    os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent.parent / 'samples' / 'runbooks')
     os.environ['SCRIPT_TIMEOUT_SECONDS'] = '60'
     os.environ['MAX_OUTPUT_SIZE_BYTES'] = '10485760'
     os.environ['RATE_LIMIT_ENABLED'] = 'false'  # Disable rate limiting for e2e tests
@@ -169,7 +169,7 @@ def test_e2e_complete_runbook_workflow(client, dev_token):
         response = client.patch(
             '/api/runbooks/SimpleRunbook.md/validate',
             headers={'Authorization': f'Bearer {dev_token}'},
-            content_type='application/json'
+            json={}  # Send empty JSON body
         )
         assert response.status_code in [200, 400]  # 200 if valid, 400 if invalid
         data = json.loads(response.data)
@@ -187,7 +187,6 @@ def test_e2e_complete_runbook_workflow(client, dev_token):
             '/api/runbooks/SimpleRunbook.md/execute',
             headers={'Authorization': f'Bearer {dev_token}'},
             json={'env_vars': {'TEST_VAR': 'e2e-execution-test'}},
-            content_type='application/json'
         )
         assert response.status_code in [200, 500]  # 200 if success, 500 if script fails
         data = json.loads(response.data)
@@ -273,7 +272,7 @@ def test_e2e_rbac_authorization_flow(client, dev_token, viewer_token):
         response = client.patch(
             '/api/runbooks/SimpleRunbook.md/validate',
             headers={'Authorization': f'Bearer {viewer_token}'},
-            content_type='application/json'
+            json={}  # Send empty JSON body
         )
         assert response.status_code == 403
         data = json.loads(response.data)
@@ -290,7 +289,6 @@ def test_e2e_rbac_authorization_flow(client, dev_token, viewer_token):
             '/api/runbooks/SimpleRunbook.md/execute',
             headers={'Authorization': f'Bearer {viewer_token}'},
             json={'env_vars': {'TEST_VAR': 'test'}},
-            content_type='application/json'
         )
         assert response.status_code == 403
         data = json.loads(response.data)
@@ -306,7 +304,6 @@ def test_e2e_rbac_authorization_flow(client, dev_token, viewer_token):
             '/api/runbooks/SimpleRunbook.md/execute',
             headers={'Authorization': f'Bearer {dev_token}'},
             json={'env_vars': {'TEST_VAR': 'test'}},
-            content_type='application/json'
         )
         assert response.status_code in [200, 500]  # May succeed or fail based on script
     finally:
@@ -363,7 +360,6 @@ def test_e2e_concurrent_executions(client, dev_token):
                 '/api/runbooks/SimpleRunbook.md/execute',
                 headers={'Authorization': f'Bearer {dev_token}'},
                 json={'env_vars': {'TEST_VAR': f'concurrent-test-{index}'}},
-                content_type='application/json'
             )
             results.append((index, response.status_code))
         except Exception as e:
@@ -429,7 +425,6 @@ def test_e2e_error_response_format_403(client, viewer_token):
             '/api/runbooks/SimpleRunbook.md/execute',
             headers={'Authorization': f'Bearer {viewer_token}'},
             json={'env_vars': {'TEST_VAR': 'test'}},
-            content_type='application/json'
         )
         assert response.status_code == 403
         data = json.loads(response.data)
@@ -449,7 +444,7 @@ def test_e2e_error_response_format_400(client, dev_token):
     response = client.patch(
         '/api/runbooks/SimpleRunbook.md/validate',
         headers={'Authorization': f'Bearer {dev_token}'},
-        content_type='application/json'
+        json={}  # Send empty JSON body
     )
     # May return 200 with errors, or 400
     assert response.status_code in [200, 400]

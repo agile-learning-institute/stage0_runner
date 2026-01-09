@@ -39,21 +39,26 @@ def save_original_runbook():
 
 
 def restore_original_runbook():
-    """Restore SimpleRunbook.md to its original state."""
+    """Restore SimpleRunbook.md to its original state using git."""
     global ORIGINAL_RUNBOOK_CONTENT
+    # Use git to discard any changes (this is the primary method)
+    try:
+        subprocess.run(
+            ['git', 'checkout', '--', str(SIMPLE_RUNBOOK_PATH)],
+            cwd=Path(__file__).parent.parent.parent,
+            capture_output=True,
+            check=False
+        )
+    except Exception:
+        pass  # Git restore is best-effort
+    
+    # Fallback: restore from saved content if git didn't work
     if ORIGINAL_RUNBOOK_CONTENT is not None and SIMPLE_RUNBOOK_PATH.exists():
-        with open(SIMPLE_RUNBOOK_PATH, 'w', encoding='utf-8') as f:
-            f.write(ORIGINAL_RUNBOOK_CONTENT)
-        # Also use git to discard any changes
         try:
-            subprocess.run(
-                ['git', 'checkout', '--', str(SIMPLE_RUNBOOK_PATH)],
-                cwd=Path(__file__).parent.parent,
-                capture_output=True,
-                check=False
-            )
+            with open(SIMPLE_RUNBOOK_PATH, 'w', encoding='utf-8') as f:
+                f.write(ORIGINAL_RUNBOOK_CONTENT)
         except Exception:
-            pass  # Git restore is best-effort
+            pass  # Best-effort restoration
 
 
 @pytest.fixture(scope='session', autouse=True)

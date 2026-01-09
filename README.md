@@ -17,6 +17,9 @@ RUNBOOK=SimpleRunbook.md ENV_VARS="TEST_VAR=test_value" make execute
 
 # Start the API server for long-running use
 make api
+
+# Build the container locally 
+make container
 ```
 
 The Makefile automatically:

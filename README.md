@@ -4,7 +4,7 @@ This repository contains the `stage0_runbook_api` component of the [Stage0 Runbo
 
 ## Quick Start
 
-A Runbook is just a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_api/blob/harden_for_prod/samples/runbooks/Runbook.md) for instructions on setting up your own runbook system.
+A Runbook is just a markdown file that describes a task. You can create a runbook for a manual task, or describe manual steps as part of an automated task, but for an automated task to be executed by the runbook automation, it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_template) for instructions on setting up your own custom runbook system.
 
 ### Using Makefile (For Runbook Authors)
 

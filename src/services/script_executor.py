@@ -149,7 +149,7 @@ class ScriptExecutor:
                     # Check and truncate stdout if necessary
                     stdout_bytes = len(stdout.encode('utf-8'))
                     if stdout_bytes > max_output_bytes:
-                        stdout, stdout_truncated = self._truncate_output(stdout, max_output_bytes)
+                        stdout, stdout_truncated = ScriptExecutor._truncate_output(stdout, max_output_bytes)
                         logger.warning(
                             f"Script stdout truncated from {stdout_bytes} bytes to {max_output_bytes} bytes "
                             f"(execution_time={execution_time:.2f}s)"
@@ -158,7 +158,7 @@ class ScriptExecutor:
                     # Check and truncate stderr if necessary
                     stderr_bytes = len(stderr.encode('utf-8'))
                     if stderr_bytes > max_output_bytes:
-                        stderr, stderr_truncated = self._truncate_output(stderr, max_output_bytes)
+                        stderr, stderr_truncated = ScriptExecutor._truncate_output(stderr, max_output_bytes)
                         logger.warning(
                             f"Script stderr truncated from {stderr_bytes} bytes to {max_output_bytes} bytes "
                             f"(execution_time={execution_time:.2f}s)"

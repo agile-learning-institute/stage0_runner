@@ -1176,6 +1176,267 @@ def test_env_var_non_string_value_converted():
             del os.environ['TEST_VAR']
 
 
+# ============================================================================
+# Additional Error Path Tests for Coverage
+# ============================================================================
+
+def test_validate_runbook_failed_load():
+    """Test validate_runbook when runbook load fails (returns None content)."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to return None content (file exists but load fails)
+    with patch.object(RunbookParser, 'load_runbook', return_value=(None, None, ['Load error'], [])):
+        with pytest.raises(HTTPInternalServerError, match="Failed to load runbook"):
+            service.validate_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_validate_runbook_rbac_failure_history_logging_error():
+    """Test validate_runbook when RBAC fails and history logging also fails."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['viewer']}}  # Wrong role
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
+    
+    # Mock history logging to raise exception
+    with patch('src.services.history_manager.HistoryManager.append_rbac_failure_history', side_effect=Exception("History error")):
+        with pytest.raises(HTTPForbidden):
+            service.validate_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_validate_runbook_general_exception():
+    """Test validate_runbook when a general exception occurs."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to raise exception
+    with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
+        with pytest.raises(HTTPInternalServerError, match="Failed to validate runbook"):
+            service.validate_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_failed_load():
+    """Test execute_runbook when runbook load fails (returns None content)."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to return None content (file exists but load fails)
+    with patch.object(RunbookParser, 'load_runbook', return_value=(None, None, ['Load error'], [])):
+        with pytest.raises(HTTPInternalServerError, match="Failed to load runbook"):
+            service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_validation_failure():
+    """Test execute_runbook when validation fails."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
+    
+    # Mock validation to fail
+    with patch.object(RunbookValidator, 'validate_runbook_content', return_value=(False, ['Validation error'], [])):
+        result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+        
+        assert result['success'] is False
+        assert result['return_code'] == 1
+        assert 'Validation error' in result['stderr']
+
+
+def test_execute_runbook_no_script():
+    """Test execute_runbook when script cannot be extracted."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
+    
+    # Mock extract_script to return None
+    with patch.object(RunbookParser, 'extract_script', return_value=None):
+        with patch.object(RunbookValidator, 'validate_runbook_content', return_value=(True, [], [])):
+            with pytest.raises(HTTPInternalServerError, match="Could not extract script"):
+                service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_rbac_failure_history_logging_error():
+    """Test execute_runbook when RBAC fails and history logging also fails."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['viewer']}}  # Wrong role
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
+    
+    # Mock history logging to raise exception
+    with patch('src.services.history_manager.HistoryManager.append_rbac_failure_history', side_effect=Exception("History error")):
+        with pytest.raises(HTTPForbidden):
+            service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_general_exception():
+    """Test execute_runbook when a general exception occurs."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to raise exception
+    with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
+        with pytest.raises(HTTPInternalServerError, match="Failed to execute runbook"):
+            service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_get_runbook_exception():
+    """Test get_runbook when an exception occurs."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to raise exception
+    with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
+        with pytest.raises(HTTPInternalServerError, match="Failed to read runbook"):
+            service.get_runbook('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_get_required_env_not_found():
+    """Test get_required_env when runbook is not found."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    with pytest.raises(HTTPNotFound):
+        service.get_required_env('nonexistent.md', token, breadcrumb)
+
+
+def test_get_required_env_failed_load():
+    """Test get_required_env when runbook load fails."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to return None content
+    with patch.object(RunbookParser, 'load_runbook', return_value=(None, None, ['Load error'], [])):
+        with pytest.raises(HTTPInternalServerError, match="Failed to load runbook"):
+            service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_get_required_env_no_env_section():
+    """Test get_required_env when Environment Requirements section is missing."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    
+    # Mock extract_section to return None for Environment Requirements
+    with patch.object(RunbookParser, 'extract_section') as mock_extract:
+        def extract_side_effect(content, section):
+            if section == 'Environment Requirements':
+                return None
+            # Return mock for other sections
+            return "mock content"
+        
+        mock_extract.side_effect = extract_side_effect
+        
+        result = service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+        
+        assert result['success'] is True
+        assert result['required'] == []
+        assert result['available'] == []
+        assert result['missing'] == []
+
+
+def test_get_required_env_no_yaml_block():
+    """Test get_required_env when Environment Requirements has no YAML block."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
+    
+    # Mock extract_yaml_block to return None
+    with patch.object(RunbookParser, 'extract_yaml_block', return_value=None):
+        result = service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+        
+        assert result['success'] is True
+        assert result['required'] == []
+        assert result['available'] == []
+        assert result['missing'] == []
+
+
+def test_get_required_env_missing_env_var():
+    """Test get_required_env when an environment variable is missing."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Ensure TEST_VAR is not set
+    original_test_var = os.environ.get('TEST_VAR')
+    if 'TEST_VAR' in os.environ:
+        del os.environ['TEST_VAR']
+    
+    try:
+        result = service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+        
+        assert result['success'] is True
+        assert len(result['required']) > 0
+        assert any(env['name'] == 'TEST_VAR' for env in result['required'])
+        assert any(env['name'] == 'TEST_VAR' for env in result['missing'])
+        assert not any(env['name'] == 'TEST_VAR' for env in result['available'])
+    finally:
+        if original_test_var:
+            os.environ['TEST_VAR'] = original_test_var
+
+
+def test_get_required_env_exception():
+    """Test get_required_env when an exception occurs."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
+    
+    # Mock load_runbook to raise exception
+    with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
+        with pytest.raises(HTTPInternalServerError, match="Failed to get required environment variables"):
+            service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+
+
 # Tests can be run with pytest or the custom runner below
 if __name__ == '__main__':
     # Fallback: Simple test runner if pytest is not available

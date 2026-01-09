@@ -12,7 +12,10 @@ The Makefile provides simple curl-based commands for testing runbooks without re
 
 ```sh
 # Start API server with local runbooks mounted 
-make api
+make dev
+
+# Start API server with packaged runbooks
+make deploy
 
 # Tail the API log files (ctrl-c to end)
 make tail 

@@ -1,7 +1,7 @@
 # Makefile for Stage0 Runbook API
 # Simple curl-based commands for testing runbooks
 
-.PHONY: help api down open validate execute get-token container tail
+.PHONY: help dev deploy down open validate execute get-token container tail
 
 # Configuration
 API_URL ?= http://localhost:8083
@@ -10,7 +10,8 @@ DATA ?= {"env_vars":{}}
 
 help:
 	@echo "Available commands:"
-	@echo "  make api              - Start API server with local runbooks mounted (for testing runbooks)"
+	@echo "  make dev              - Start API server with local runbooks mounted (for testing runbooks)"
+	@echo "  make deploy           - Start API server with packaged runbooks (for deployment)"
 	@echo "  make down             - Stop all services"
 	@echo "  make open             - Open web UI in browser"
 	@echo "  make tail             - Tail API logs (captures terminal, Ctrl+C to exit)"
@@ -19,12 +20,13 @@ help:
 	@echo "  make container        - Build the container image"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make api              # Start API in one terminal"
+	@echo "  make dev              # Start API in dev mode (local runbooks mounted)"
+	@echo "  make deploy           # Start API in deploy mode (packaged runbooks)"
 	@echo "  make validate RUNBOOK=samples/runbooks/SimpleRunbook.md"
 	@echo "  make execute RUNBOOK=samples/runbooks/SimpleRunbook.md DATA='{\"env_vars\":{\"TEST_VAR\":\"test_value\"}}'"
 
 down:
-	@docker-compose down
+	@docker-compose --profile runbook-dev --profile runbook-deploy down
 
 open:
 	@echo "Opening web UI..."
@@ -58,14 +60,25 @@ execute:
 		| jq '.' || cat
 
 # Start API server with local runbooks mounted (for runbook authors)
-api:
+dev:
 	@$(MAKE) down || true
-	@echo "Starting API server with local runbooks mounted..."
-	@docker-compose up -d
+	@echo "Starting API server in dev mode with local runbooks mounted..."
+	@docker-compose --profile runbook-dev up -d
 	@echo "Waiting for API to be ready..."
 	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
 	@echo "API is ready at http://localhost:8083"
 	@echo "Runbooks are mounted from ./samples/runbooks"
+	@echo "Use 'make down' to stop the API"
+
+# Start API server with packaged runbooks (for deployment)
+deploy:
+	@$(MAKE) down || true
+	@echo "Starting API server in deploy mode with packaged runbooks..."
+	@docker-compose --profile runbook-deploy up -d
+	@echo "Waiting for API to be ready..."
+	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
+	@echo "API is ready at http://localhost:8083"
+	@echo "Runbooks are packaged in the container at ./runbooks"
 	@echo "Use 'make down' to stop the API"
 
 # Build the deployment container

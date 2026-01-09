@@ -6,27 +6,39 @@ This repository contains the `stage0_runbook_api` component of the [Stage0 Runbo
 
 A Runbook is a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_api/blob/harden_for_prod/samples/runbooks/Runbook.md) for instructions on setting up your own runbook system.
 
-### Using Makefile (Recommended for CLI)
+### Using Makefile (Recommended for Testing)
+
+The Makefile provides simple curl-based commands for testing runbooks without requiring Python or the CLI tool:
 
 ```sh
-# Validate a runbook using the API (via docker-compose)
-RUNBOOK=SimpleRunbook.md ENV_VARS="TEST_VAR=test_value" make validate
+# Start API in dev mode with local runbooks mounted
+make dev
 
-# Execute a runbook using the API (via docker-compose)
-RUNBOOK=SimpleRunbook.md ENV_VARS="TEST_VAR=test_value" make execute
+# Validate a runbook (API must be running)
+make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
+
+# Execute a runbook with environment variables
+make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'
 
 # Start the API server for long-running use
 make api
 
 # Build the container locally 
 make container
+
+# Open web UI in browser
+make open
+
+# Stop all services
+make down
 ```
 
-The Makefile automatically:
-1. Starts the API server using docker-compose
-2. Authenticates and gets a JWT token
-3. Calls the appropriate API endpoint
-4. Gracefully shuts down the API server
+The Makefile uses `curl` to interact with the API:
+- Automatically gets a dev token from `/dev-login`
+- Calls the appropriate API endpoint
+- Formats JSON output using `jq`
+
+**Prerequisites**: `make`, `curl`, and `jq` (for JSON formatting)
 
 ### Using the API Directly
 

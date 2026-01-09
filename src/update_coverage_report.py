@@ -5,8 +5,16 @@ Update the coverage report markdown file.
 import json
 from pathlib import Path
 
+# Coverage files are stored in coverage/ directory (git-ignored)
+COVERAGE_DIR = Path(__file__).parent.parent / 'coverage'
+COVERAGE_JSON = COVERAGE_DIR / 'coverage.json'
+COVERAGE_REPORT = COVERAGE_DIR / 'COVERAGE_REPORT.md'
+
+# Ensure coverage directory exists
+COVERAGE_DIR.mkdir(exist_ok=True)
+
 # Read coverage data
-with open('coverage.json', 'r') as f:
+with open(COVERAGE_JSON, 'r') as f:
     coverage_data = json.load(f)
 
 # Get line counts for each file
@@ -64,7 +72,7 @@ report.append(f"- **Good (≥80%):** {good} files")
 report.append(f"- **Low (60-79%):** {low} files")
 report.append(f"- **Poor (<60%):** {poor} files")
 
-with open('COVERAGE_REPORT.md', 'w') as f:
+with open(COVERAGE_REPORT, 'w') as f:
     f.write('\n'.join(report))
 
-print('Coverage report updated: COVERAGE_REPORT.md')
+print(f'Coverage report updated: {COVERAGE_REPORT}')

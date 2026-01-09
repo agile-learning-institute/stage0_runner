@@ -1,7 +1,7 @@
 services:
   api:
     image: ghcr.io/agile-learning-institute/stage0_runbook_api:latest
-    container_name: stage0_runbook_api_cli
+    container_name: stage0_runbook_api
     restart: no
     ports:
       - "8083:8083"

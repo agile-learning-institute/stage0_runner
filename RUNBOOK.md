@@ -1,12 +1,9 @@
 # Runbooks
 
-A runbook is a markdown file, with some specific layout requirements. The document will have six H1 headers, with the following content:
+A runbook is a markdown file, with some specific layout requirements. The document will have five required H1 headers, plus one optional header, with the following content:
 
 # RunbookName
-The first H1 should be the runbook name. This should match the file name, without the .md extension. Runbook file names should not contain spaces. By convention, runbooks use Pascal case names. 
-
-# Documentation
-This is where you will find a description of what the runbook does, when to use it, and how to use it.
+The first H1 should be the runbook name. This should match the file name, without the .md extension. Runbook file names should not contain spaces. By convention, runbooks use Pascal case names. The content immediately following this header (before the next H1 section) is where you will find a description of what the runbook does, when to use it, and how to use it.
 
 # Environment Requirements
 This section must contain a yaml code block that defines the environment variables that the script expects to find, with a description of what that variable should contain. 

@@ -1,6 +1,4 @@
 # CreatePackage
-
-# Documentation
 This runbook creates a GitHub Container Registry Package by building a HelloWorld image using [this Dockerfile](./CreatePackage.dockerfile), labeling it to connect to a source code repo, and pushes this new image to ghcr.
 
 # Environment Requirements

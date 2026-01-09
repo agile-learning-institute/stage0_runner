@@ -43,7 +43,6 @@ class RunbookValidator:
         
         # Check required sections
         required_sections = [
-            'Documentation',
             'Environment Requirements',
             'File System Requirements',
             'Script',

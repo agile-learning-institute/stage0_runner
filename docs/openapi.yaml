@@ -338,7 +338,7 @@ components:
         content:
           type: string
           description: The full markdown content of the runbook
-          example: "# SimpleRunbook\n\n# Documentation\n..."
+          example: "# SimpleRunbook\n\nDescription text here.\n\n# Environment Requirements\n..."
 
     RunbookList:
       type: object

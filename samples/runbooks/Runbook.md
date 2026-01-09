@@ -1,7 +1,5 @@
 # Runbook Template
 
-# Documentation
-
 # Environment Requirements
 ```yaml
 TEST_VAR: A test environment variable for demonstration purposes

@@ -300,8 +300,6 @@ def test_rbac_enforcement_on_execute(client, viewer_token):
     """Test that RBAC is enforced on execute endpoint."""
     # Create a runbook that requires admin role
     runbook_content = """# TestRunbook
-# Documentation
-Test RBAC
 # Environment Requirements
 ```yaml
 ```
@@ -348,8 +346,6 @@ def test_rbac_enforcement_on_validate(client, viewer_token):
     """Test that RBAC is enforced on validate endpoint."""
     # Create a runbook that requires admin role
     runbook_content = """# TestRunbook
-# Documentation
-Test RBAC
 # Environment Requirements
 ```yaml
 ```
@@ -489,8 +485,6 @@ def test_error_response_format_403(client, viewer_token):
     """Test that 403 errors return proper format."""
     # Use a runbook that requires admin (viewer doesn't have)
     runbook_content = """# TestRunbook
-# Documentation
-Test
 # Environment Requirements
 ```yaml
 ```
@@ -550,8 +544,6 @@ def test_error_response_format_500(client, dev_token):
     """Test that 500 errors return proper format (when script fails)."""
     # Create a runbook that will fail
     runbook_content = """# TestRunbook
-# Documentation
-Test error format
 # Environment Requirements
 ```yaml
 ```

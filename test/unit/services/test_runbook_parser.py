@@ -28,7 +28,7 @@ class TestRunbookParserHistoryParsing:
     
     def test_parse_last_history_entry_no_history_section(self):
         """Test parsing when History section doesn't exist."""
-        content = "# Test Runbook\n\n# Documentation\nSome docs"
+        content = "# Test Runbook\n\n# Environment Requirements\n```yaml\n```\n# Script\n```sh\necho test\n```"
         stdout, stderr = RunbookParser.parse_last_history_entry(content)
         assert stdout == ""
         assert stderr == ""

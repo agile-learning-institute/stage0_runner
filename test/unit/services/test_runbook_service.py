@@ -42,9 +42,6 @@ def test_extract_sections():
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Test section extraction
-    doc_section = RunbookParser.extract_section(content, 'Documentation')
-    assert doc_section is not None, "Should extract Documentation section"
-    
     script = RunbookParser.extract_script(content)
     assert script is not None, "Should extract script"
     assert 'echo' in script, "Script should contain echo command"
@@ -130,8 +127,6 @@ echo "This should not appear"
 """
     
     runbook_content = f"""# TestRunbook
-# Documentation
-Test runbook for timeout
 # Environment Requirements
 ```yaml
 ```
@@ -195,8 +190,6 @@ done
 """
     
     runbook_content = f"""# TestRunbook
-# Documentation
-Test runbook for output limits
 # Environment Requirements
 ```yaml
 ```
@@ -490,8 +483,6 @@ def test_execute_runbook_rbac_failure():
     
     # Create a runbook with required claims
     runbook_content = """# TestRunbook
-# Documentation
-Test
 # Environment Requirements
 ```yaml
 ```
@@ -560,7 +551,7 @@ def test_extract_section_none_content():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = RunbookParser.extract_section(None, 'Documentation')
+    result = RunbookParser.extract_section(None, 'Environment Requirements')
     assert result is None, "Should return None for None content"
 
 
@@ -569,7 +560,7 @@ def test_extract_section_empty_content():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    result = RunbookParser.extract_section('', 'Documentation')
+    result = RunbookParser.extract_section('', 'Environment Requirements')
     assert result is None, "Should return None for empty content"
 
 
@@ -741,8 +732,6 @@ def test_extract_required_claims_none():
     service = RunbookService(runbooks_dir)
     
     content = """# TestRunbook
-# Documentation
-Test
 # Environment Requirements
 ```yaml
 ```
@@ -790,8 +779,6 @@ def test_execute_script_empty_script():
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
-# Documentation
-Test
 # Environment Requirements
 ```yaml
 ```
@@ -861,8 +848,6 @@ def test_temp_directory_cleanup_on_error():
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
-# Documentation
-Test
 # Environment Requirements
 ```yaml
 ```
@@ -1042,8 +1027,6 @@ def test_env_var_value_sanitization():
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
-# Documentation
-Test sanitization
 # Environment Requirements
 ```yaml
 TEST_VAR: Test variable
@@ -1091,8 +1074,6 @@ def test_env_var_preserves_newlines_and_tabs():
     service = RunbookService(runbooks_dir)
     
     runbook_content = """# TestRunbook
-# Documentation
-Test newlines/tabs preservation
 # Environment Requirements
 ```yaml
 TEST_VAR: Test variable

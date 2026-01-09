@@ -1,6 +1,4 @@
 # SimpleRunbook
-
-# Documentation
 This is a simple test runbook that demonstrates the basic functionality of the stage0_runner utility. It performs a simple echo operation and lists the current directory.
 
 # Environment Requirements
@@ -35,3 +33,57 @@ echo "SimpleRunbook completed successfully"
 
 # History
 
+
+## 2026-01-08t23:03:00.372
+- Completed: 2026-01-08t23:03:00.384
+- Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: testvalue
+Current directory: /workspace
+Listing files:
+total 24
+drwxr-xr-x 7 root root  224 Jan  8 23:03 .
+drwxr-xr-x 1 root root 4096 Jan  8 23:02 ..
+-rw-r--r-- 1 root root  122 Jan  7 22:12 CreatePackage.dockerfile
+-rw-r--r-- 1 root root  949 Jan  8 18:55 CreatePackage.md
+-rw-r--r-- 1 root root  646 Jan  8 18:55 Runbook.md
+-rw-r--r-- 1 root root  969 Jan  8 22:03 SimpleRunbook.md
+-rwxr-xr-x 1 root root  195 Jan  8 23:03 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```
+
+## 2026-01-08t23:11:49.644
+- Completed: 2026-01-08t23:11:49.650
+- Return Code: 0
+
+### stdout
+```
+Running SimpleRunbook
+Test variable value: foo
+Current directory: /workspace
+Listing files:
+total 24
+drwxr-xr-x 7 root root  224 Jan  8 23:11 .
+drwxr-xr-x 1 root root 4096 Jan  8 23:02 ..
+-rw-r--r-- 1 root root  122 Jan  7 22:12 CreatePackage.dockerfile
+-rw-r--r-- 1 root root  949 Jan  8 18:55 CreatePackage.md
+-rw-r--r-- 1 root root  646 Jan  8 18:55 Runbook.md
+-rw-r--r-- 1 root root 1608 Jan  8 23:03 SimpleRunbook.md
+-rwxr-xr-x 1 root root  195 Jan  8 23:11 temp.zsh
+SimpleRunbook completed successfully
+
+```
+
+### stderr
+```
+
+```

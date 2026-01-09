@@ -11,13 +11,14 @@ pyjwt = "*"
 prometheus-flask-exporter = "*"
 flask-limiter = "*"
 pyyaml = "*"
+pytest = "*"
 
 [dev-packages]
 pytest = "*"
 
 [scripts]
-test = "pytest test/test_runbook_service.py test/test_integration.py -v"
-e2e = "pytest test/test_e2e.py -v"
+test = "pytest test -v"
+e2e = "pytest test/e2e -v"
 dev = "python src/server.py"
 
 [requires]

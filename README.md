@@ -14,7 +14,7 @@ The Makefile provides simple curl-based commands for testing runbooks without re
 # Start API server with local runbooks mounted (run in one terminal)
 make api
 
-# In another terminal, validate a runbook
+# Validate a runbook
 make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
 
 # Execute a runbook with environment variables

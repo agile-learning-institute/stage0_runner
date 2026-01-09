@@ -1,6 +1,4 @@
 # CreatePackage
-
-# Documentation
 This runbook creates a GitHub Container Registry Package by building a HelloWorld image using [this Dockerfile](./CreatePackage.dockerfile), labeling it to connect to a source code repo, and pushes this new image to ghcr.
 
 # Environment Requirements
@@ -14,6 +12,12 @@ Input:
 - ./CreatePackage.dockerfile
 Output:
 ```
+
+# Required Claims
+```yaml
+roles: developer, admin, devops
+```
+This runbook requires elevated permissions to push to GitHub Container Registry.
 
 # Script
 ```sh

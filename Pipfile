@@ -7,16 +7,22 @@ name = "pypi"
 flask = "*"
 gunicorn = "*"
 gevent = "*"
+pyjwt = "*"
+prometheus-flask-exporter = "*"
+flask-limiter = "*"
+pyyaml = "*"
+pytest = "*"
 
 [dev-packages]
 pytest = "*"
+pytest-cov = "*"
+requests = "*"
 
 [scripts]
-validate = "python src/command.py validate"
-execute = "python src/command.py execute"
-serve = "python src/command.py serve"
-test = "pytest test/"
+test = "pytest test/unit test/integration -v"
+e2e = "pytest test/e2e -v"
+dev = "python -c \"import sys, os; from pathlib import Path; sys.path.insert(0, str(Path.cwd())); os.chdir(str(Path.cwd())); exec(open('src/server.py').read())\""
+coverage = "bash -c 'mkdir -p coverage && pytest test/unit test/integration --cov=src --cov-report=json:coverage/coverage.json --cov-report=term && python src/update_coverage_report.py'"
 
 [requires]
 python_version = "3.12"
-

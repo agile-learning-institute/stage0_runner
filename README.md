@@ -1,213 +1,199 @@
 # stage0_runbook_api
 
-This repository contains the `stage0_runbook_api` utility which is used to execute Runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
+This repository contains the `stage0_runbook_api` component of the [Stage0 Runbook System](https://github.com/agile-learning-institute/stage0_runbooks) - a production-ready REST API server for validating and executing runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
 
 ## Quick Start
-A Runbook is a markdown file that describes a (automated) task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). Here is an [empty template](./samples/runbooks/Runbook.md) runbook, and a [Simple Example](./samples/runbooks/SimpleRunbook.md) runbook. See the [Makefile](./Makefile) for examples of using the utility container to validate or execute a Runbook.
+
+A Runbook is just a markdown file that describes a task. You can create a runbook for a manual task, or describe manual steps as part of an automated task, but for an automated task to be executed by the runbook automation, it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_template) for instructions on setting up your own custom runbook system.
+
+### Using Makefile (For Runbook Authors)
+
+The Makefile provides simple curl-based commands for testing runbooks without requiring Python:
 
 ```sh
-# Validate a runbook using the containerized utility
-RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make validate
+# Start API server with local runbooks mounted 
+make dev
 
-# Execute a runbook using the containerized utility
-RUNBOOK=./samples/runbooks/SimpleRunbook.md ENV_VARS="-e TEST_VAR=test_value" make execute
+# Start API server with packaged runbooks
+make deploy
+
+# Tail the API log files (ctrl-c to end)
+make tail 
+
+# Validate a runbook (assumes API is running)
+make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
+
+# Execute a runbook with environment variables (assumes API is running)
+make execute RUNBOOK=samples/runbooks/SimpleRunbook.md DATA='{"env_vars":{"TEST_VAR":"test_value"}}'
+
+# Open web UI in browser (assumes API and SPA are running)
+make open
+
+# Stop the API server
+make down
+
+# Build the container image
+make container
+```
+
+The Makefile uses `curl` to interact with the API:
+- Automatically gets a dev token from `/dev-login`
+- Calls the appropriate API endpoint
+- Formats JSON output using `jq`
+
+**Prerequisites**: `make`, `curl`, and `jq` (for JSON formatting)
+
+**Note**: `pipenv run dev` runs the API server locally (not in Docker) and is for API developers, not runbook authors.
+
+### Using the API Directly
+
+All operations require JWT authentication. For development, use the `/dev-login` endpoint to get a token:
+
+```sh
+# Get a token
+TOKEN=$(curl -s -X POST http://localhost:8083/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"dev-user","roles":["developer","admin"]}' | \
+  jq -r '.access_token')
+
+# Validate a runbook
+curl -X PATCH "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+
+# Execute a runbook with environment variables
+curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"env_vars":{"TEST_VAR":"test_value"}}'
+
+# Execute without environment variables (empty env_vars object)
+curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"env_vars":{}}'
+
+# List all runbooks
+curl -X GET "http://localhost:8083/api/runbooks" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get runbook content
+curl -X GET "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Shutdown the API server
+curl -X POST "http://localhost:8083/api/shutdown" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Contributing Prerequisites
+
 - Python 3.12+
 - pipenv (install with `pip install pipenv`)
-- Docker (for container-based execution)
+- Docker and Docker Compose (for container-based execution)
 
 ## Developer Commands
+
+For API developers working on the API codebase:
+
 ```sh
 # Install dependencies
 pipenv install
 
-# Run tests
+# Run unit and integration tests (uses Flask test client, no running API required)
 pipenv run test
 
-# Execute the runbook locally
-export RUNBOOK=./samples/runbooks/SimpleRunbook.md
-export TEST_VAR=test_value
-pipenv run execute
+# Run end-to-end (e2e) tests (comprehensive workflow tests)
+pipenv run e2e
 
-# Validate the runbook locally
-export RUNBOOK=./samples/runbooks/SimpleRunbook.md
-export TEST_VAR=test_value
-pipenv run validate
-
-# Start the API server (default port 8083)
-export API_PORT=8083
-export RUNBOOKS_DIR=./samples
-pipenv run serve
+# Run the API server locally (not in Docker, for API development)
+pipenv run dev
 
 # Build the deployment container
 make container
-
 ```
 
-### Validation Processing:
-Validation confirms the runbook is well formed and all runtime dependencies are met. **Validation does not modify the runbook** - it only checks validity. Validation is not fail fast, and provides helpful errors that make it easy to fix problems. Validation goes beyond just validating that the file is well formed, it also validates that execution requirements are met. 
-- Verify that the Runbook file exists
-- Verify the Environment yaml exists
-- Verify that the Env Vars listed exist
-- Verify that the # File System Requirements header exists
-- Verify that the required files / folders exist
-- Verify that the runbook has the required sh code block
-- Verify that the runbook has a # History Header
-
-On success, validation prints a success message and exits with code 0. On failure, it prints all errors and warnings and exits with code 1.
+For runbook authors testing their runbooks, use `make api` (see [Using Makefile](#using-makefile-for-runbook-authors) above).
 
 ## API Server
 
-The `runbook serve` command starts a Flask web server that provides:
-- REST API endpoints for runbook operations
-- An API Explorer UI at `/docs/explorer.html` for interactive API documentation
-- Static file serving for documentation and OpenAPI specification
-
-**Note:** A full-featured Single Page Application (SPA) frontend should be built in a separate repository that consumes this API.
-
-### Sample curl commands - see the API Explorer for more details
-```sh
-## Execute a runbook POST 
-curl -X POST "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
-
-## Validate a runbook PATCH 
-curl -X PATCH "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
-
-## Get a Runbook Markdown File
-curl -X GET "http://localhost:8083/api/SimpleRunbook.md"
-```
+The API server runs via Gunicorn and provides REST API endpoints for runbook operations with JWT authentication.
 
 ### API Explorer
 
-The API Explorer is available at `/docs/explorer.html` and provides:
-- Interactive API documentation using Swagger UI
+Interactive API documentation is available at **http://localhost:8083/docs/explorer.html** when the API is running. The explorer provides:
+- Complete endpoint documentation with descriptions
 - Try-it-out functionality for testing endpoints
-- Full OpenAPI specification rendering
-- Example requests and responses
+- Request/response examples
+- Authentication testing
 
-The OpenAPI specification is available at `/docs/openapi.yaml`.
+The OpenAPI specification is available at **http://localhost:8083/docs/openapi.yaml**.
 
-**Access the explorer:**
-```
-http://localhost:8083/docs/explorer.html
-http://localhost:8083/docs/openapi.yaml
-```
+**Note**: All endpoints except `/dev-login`, `/metrics`, and `/docs` require JWT authentication.
 
-### Frontend Integration
+## Configuration
 
-This API is designed to be consumed by a separate SPA frontend. The API provides:
-- RESTful JSON endpoints for all operations
-- Consistent response formats
-- Execution results with viewer links (for integration with external viewers)
-- Complete OpenAPI specification for frontend code generation
+The API server uses a centralized `Config` singleton (see [`src/config/config.py`](./src/config/config.py)) that manages all configuration via environment variables with sensible defaults.
 
-The `viewer_link` in execution responses is provided for SPA integration. Adjust the URL format in your SPA frontend to match your routing structure (e.g., `/runbook/{filename}`).
+**Key Configuration Variables:**
+- `API_PORT` - Port for the API server (default: `8083`)
+- `RUNBOOKS_DIR` - Directory containing runbooks (default: `./samples/runbooks`)
+- `ENABLE_LOGIN` - Enable `/dev-login` endpoint for development (default: `false`, **NEVER enable in production**)
+- `JWT_SECRET` - Secret for JWT signing (**MUST be changed in production**)
+- `JWT_ISSUER` - Expected JWT issuer claim
+- `JWT_AUDIENCE` - Expected JWT audience claim
 
-## Execution Processing
-- Fail fast validate.
-- Create temp.zsh with the contents of the code block
-- Invoke temp.zsh and capture stdout and stderr
-- Append execution information onto Runbook. 
-- Remove temp.zsh
+**For complete configuration reference**, see [`src/config/config.py`](./src/config/config.py) which defines all configuration options, their types, defaults, and how they're loaded from environment variables.
 
-## SRE Guidance
-You can extend the Base Image to create a custom runbook container that includes additional script prerequisites such as a vendor CLI (GitHub, AWS, ...). You can even package a set of "approved" RunBooks with that container. 
+**For production configuration guidance**, including required settings, recommended values, and deployment examples, see the [SRE Documentation](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md#production-configuration).
 
-The base `stage0_runner` image is kept minimal and includes only:
-- Python 3.12 and pipenv
-- zsh (required for runbook scripts)
-- The runbook runner utility
+## Authentication and Authorization
 
-For runbooks that need additional tools (like Docker CLI or GitHub CLI), you can extend the base image. A sample extended Dockerfile is provided:
+### Development Mode
 
-**samples/Dockerfile.extended** - Extends the base image with Docker CLI and GitHub CLI
+When `ENABLE_LOGIN=true`, use the `/dev-login` endpoint to obtain JWT tokens:
 
-**samples/Dockerfile.with-runbooks** - Packages a collection of verified runbooks into the container
-
-**samples/Dockerfile.extended-with-runbooks** - Combines both: tools (Docker CLI, GitHub CLI) and packaged runbooks
-
-To use the extended image:
-```sh
-# Build the extended image
-docker build -f samples/Dockerfile.extended -t my-stage0-runner:extended .
-
-# Run with Docker socket mount (for docker commands)
-docker run --rm \
-    -v $(PWD):/workspace \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -w /workspace \
-    -e RUNBOOK=./my-runbook.md \
-    my-stage0-runner:extended \
-    runbook execute --runbook ./my-runbook.md
+```bash
+curl -X POST http://localhost:8083/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"subject":"dev-user","roles":["developer","admin"]}'
 ```
 
-To package runbooks into a container:
-```sh
-# Create a runbooks directory with your verified runbooks
-mkdir -p runbooks
-cp my-runbook1.md my-runbook2.md runbooks/
+**Never enable this in production!**
 
-# Build the image with runbooks
-docker build -f samples/Dockerfile.with-runbooks -t my-runbooks:latest .
+### Production Authentication and RBAC
 
-# Execute a packaged runbook
-docker run --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -e GITHUB_TOKEN=$GITHUB_TOKEN \
-    my-runbooks:latest \
-    runbook execute --runbook /opt/stage0/runbooks/my-runbook1.md
-```
+For production authentication setup, JWT configuration, and Role-Based Access Control (RBAC) details, see the [SRE Documentation](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md#authentication-and-authorization).
 
-You can combine approaches - extend the extended image and add runbooks:
-```dockerfile
-FROM ghcr.io/agile-learning-institute/stage0_runner:extended
+Runbooks can specify required claims in the "Required Claims" section to control access. See [RUNBOOK.md](./RUNBOOK.md#required-claims) for details on how to specify required claims and how RBAC validation works.
 
-# Copy your runbooks
-RUN mkdir -p /opt/stage0/runbooks
-COPY runbooks/ /opt/stage0/runbooks/
-WORKDIR /opt/stage0/runbooks
+## Runbook Format
 
-# Add any additional tools if needed
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends your-tool && \
-    rm -rf /var/lib/apt/lists/*
-```
+For complete details on runbook structure, required sections, history format, and execution processing, see [RUNBOOK.md](./RUNBOOK.md).
 
-You can create your own extended Dockerfile based on your specific needs:
-```dockerfile
-FROM ghcr.io/agile-learning-institute/stage0_runner:latest
+## Security
 
-# Add your custom tools here
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends your-tool && \
-    rm -rf /var/lib/apt/lists/*
-```
+For comprehensive security documentation, including security features, production requirements, known limitations, threat model, and best practices, see [SECURITY.md](./SECURITY.md).
+
+
+## Production Deployment Guide
+
+For comprehensive production deployment documentation, including deployment options (Docker Compose single/multi-instance, Kubernetes), configuration reference, monitoring setup, load balancing, backup/recovery, and performance tuning, see [SRE.md](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md) in the stage0_runbooks repository.
 
 ## Project Structure
+
 ```
 .
-├── Dockerfile                      # Base Docker configuration (minimal)
 ├── samples/                       # Sample Dockerfiles and example runbooks
-│   ├── Dockerfile.extended        # Extended image with Docker CLI and GitHub CLI
-│   ├── Dockerfile.with-runbooks   # Image with packaged runbooks collection
-│   ├── Dockerfile.extended-with-runbooks # Combined: tools + runbooks
-│   └── runbooks/                  # Example runbooks
-│       ├── SimpleRunbook.md
-│       ├── CreatePackage.md
-│       └── CreatePackage.dockerfile
-├── Makefile                 # Make targets for container operations
-├── Pipfile                  # Python dependencies (pipenv)
-├── README.md                # This file
-├── RUNBOOK.md               # Runbook format specification
-├── docs/
-│   ├── explorer.html        # API Explorer (Swagger UI)
-│   └── openapi.yaml         # OpenAPI specification
+├── docs/                          # API Explorer, OpenAPI, History Schema
 ├── src/
-│   ├── command.py          # The runbook command implementation
-│   ├── runbook              # Wrapper script for simplified usage
-│   └── server.py            # Flask API server module
+│   ├── config/                    # Configuration management
+│   ├── flask_utils/               # Flask utilities
+│   ├── routes/                    # API route blueprints
+│   ├── services/                  # Business logic layer
+│   └── server.py                  # Flask application factory
 └── test/
-    └── test_command.py      # Unit tests for the runner
+    ├── e2e/                       # End 2 End testing
+    ├── integration/               # Integration testing
+    ├── unit/                      # Unit testing
 ```

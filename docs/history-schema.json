@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/agile-learning-institute/stage0_runbook_api/blob/main/docs/history-schema.json",
+  "title": "Runbook Execution History Entry",
+  "description": "Schema for execution history entries appended to runbooks and logged to application logs. History entries are stored as minified JSON (single line, no whitespace) in the runbook's History section.",
+  "type": "object",
+  "required": [
+    "start_timestamp",
+    "finish_timestamp",
+    "return_code",
+    "operation",
+    "breadcrumb",
+    "config_items",
+    "stdout",
+    "stderr",
+    "errors",
+    "warnings"
+  ],
+  "properties": {
+    "start_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp (UTC) when the operation started",
+      "example": "2026-01-08T00:41:27.979Z"
+    },
+    "finish_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp (UTC) when the operation completed",
+      "example": "2026-01-08T00:41:27.987Z"
+    },
+    "return_code": {
+      "type": "integer",
+      "description": "Return code from script execution. 0 indicates success, non-zero indicates failure. For RBAC failures, this will be 403.",
+      "minimum": 0,
+      "example": 0
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["execute", "validate"],
+      "description": "The operation that was performed",
+      "example": "execute"
+    },
+    "breadcrumb": {
+      "type": "object",
+      "description": "Request metadata for audit trail purposes",
+      "required": [
+        "at_time",
+        "by_user",
+        "from_ip",
+        "correlation_id",
+        "roles"
+      ],
+      "properties": {
+        "at_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp (UTC) when the request was received",
+          "example": "2026-01-08T00:41:27.979Z"
+        },
+        "by_user": {
+          "type": "string",
+          "description": "User ID from the JWT token (subject claim)",
+          "example": "user123"
+        },
+        "from_ip": {
+          "type": "string",
+          "description": "IP address of the client making the request",
+          "example": "192.168.1.1"
+        },
+        "correlation_id": {
+          "type": "string",
+          "description": "Unique correlation ID for tracing the request (from X-Correlation-Id header or auto-generated UUID)",
+          "example": "abc-123-def-456"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Roles from the JWT token (roles claim)",
+          "example": ["developer", "admin"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "config_items": {
+      "type": "array",
+      "description": "Configuration values at execution time, tracked with their source (environment, default, etc.)",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "value",
+          "from"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Configuration variable name",
+            "example": "API_PORT"
+          },
+          "value": {
+            "type": "string",
+            "description": "Configuration value (secret values are masked as 'secret')",
+            "example": "8083"
+          },
+          "from": {
+            "type": "string",
+            "enum": ["environment", "default"],
+            "description": "Source of the configuration value",
+            "example": "default"
+          }
+        },
+        "additionalProperties": false
+      },
+      "example": [
+        {
+          "name": "API_PORT",
+          "value": "8083",
+          "from": "default"
+        }
+      ]
+    },
+    "stdout": {
+      "type": "string",
+      "description": "Standard output from script execution",
+      "example": "Hello, World!"
+    },
+    "stderr": {
+      "type": "string",
+      "description": "Standard error output from script execution",
+      "example": ""
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of error messages from validation or execution",
+      "example": []
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of warning messages from validation or execution",
+      "example": []
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "start_timestamp": "2026-01-08T00:41:27.979Z",
+      "finish_timestamp": "2026-01-08T00:41:27.987Z",
+      "return_code": 0,
+      "operation": "execute",
+      "breadcrumb": {
+        "at_time": "2026-01-08T00:41:27.979Z",
+        "by_user": "user123",
+        "from_ip": "192.168.1.1",
+        "correlation_id": "abc-123-def-456",
+        "roles": ["developer", "admin"]
+      },
+      "config_items": [
+        {
+          "name": "API_PORT",
+          "value": "8083",
+          "from": "default"
+        }
+      ],
+      "stdout": "Execution completed successfully",
+      "stderr": "",
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "start_timestamp": "2026-01-08T00:42:15.123Z",
+      "finish_timestamp": "2026-01-08T00:42:15.125Z",
+      "return_code": 403,
+      "operation": "execute",
+      "breadcrumb": {
+        "at_time": "2026-01-08T00:42:15.123Z",
+        "by_user": "user456",
+        "from_ip": "10.0.0.5",
+        "correlation_id": "xyz-789",
+        "roles": ["viewer"]
+      },
+      "config_items": [
+        {
+          "name": "API_PORT",
+          "value": "8083",
+          "from": "default"
+        }
+      ],
+      "stdout": "",
+      "stderr": "",
+      "errors": [
+        "RBAC Failure: Access denied for user user456. RBAC check failed for execute. Missing or invalid claims: roles=viewer (required: developer, admin)"
+      ],
+      "warnings": []
+    }
+  ]
+}
+

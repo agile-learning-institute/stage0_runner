@@ -4,347 +4,138 @@ Flask API server for Stage0 Runbook Runner
 
 Provides REST API endpoints for runbook operations.
 Designed to be consumed by a separate SPA frontend.
+
+This server follows the template_flask_mongo architecture pattern:
+- Config singleton initialization
+- Flask route registration with service layer
+- Prometheus metrics integration
+- JWT token authentication and authorization
+- Graceful shutdown handling
 """
-import os
 import sys
+import os
+import signal
 from pathlib import Path
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask
 
-# Add src directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
-from command import RunbookRunner
+import logging
 
-
-def create_app(runbooks_dir: str):
+def create_app():
     """
     Create and configure Flask application.
     
-    Args:
-        runbooks_dir: Path to directory containing runbooks
-        
+    This function is used by Gunicorn.
+    
     Returns:
         Flask application instance
     """
-    # Determine static folder path (works for both dev and production)
-    # In container: /opt/stage0/runner/src/server.py -> /opt/stage0/runner/docs
-    # In dev: ./src/server.py -> ./docs
-    static_folder_path = Path(__file__).parent.parent / 'docs'
-    app = Flask(__name__, static_folder=str(static_folder_path), static_url_path='/docs')
-    runbooks_path = Path(runbooks_dir).resolve()
+    # Initialize Config Singleton (this configures logging in __init__)
+    from src.config.config import Config
+    config = Config.get_instance()
     
-    def resolve_runbook_path(filename: str) -> Path:
-        """Get full path to a runbook file."""
-        # Security: prevent directory traversal
-        safe_filename = os.path.basename(filename)
-        return runbooks_path / safe_filename
+    logger = logging.getLogger(__name__)
+    logger.info("============= Starting Stage0 Runbook API Server ===============")
     
-    def extract_env_vars_from_request():
-        """Extract environment variables from query parameters."""
-        env_vars = {}
-        for key, value in request.args.items():
-            if key != 'RUNBOOK':
-                env_vars[key] = value
-        return env_vars
+    # Initialize Flask App
+    from prometheus_flask_exporter import PrometheusMetrics
     
-    @app.route('/api/<path:runbook>', methods=['POST'])
-    def execute_runbook_path(runbook: str):
-        """Execute a runbook (path-based endpoint)."""
-        return execute_runbook_impl(runbook)
+    app = Flask(__name__)
     
-    @app.route('/api/execute', methods=['GET', 'POST'])
-    def execute_runbook():
-        """Execute a runbook (query parameter-based endpoint)."""
-        runbook_filename = request.args.get('RUNBOOK')
-        if not runbook_filename:
-            return jsonify({
-                "success": False,
-                "error": "RUNBOOK query parameter is required"
-            }), 400
-        return execute_runbook_impl(runbook_filename)
+    # Apply Prometheus monitoring middleware - exposes /metrics endpoint (default)
+    metrics = PrometheusMetrics(app)
     
-    def execute_runbook_impl(runbook_filename: str):
-        """Execute a runbook implementation."""
+    # Configure Rate Limiting (if enabled)
+    if config.RATE_LIMIT_ENABLED:
+        from flask_limiter import Limiter
+        from flask_limiter.util import get_remote_address
         
-        runbook_path = resolve_runbook_path(runbook_filename)
-        if not runbook_path.exists():
-            return jsonify({
-                "success": False,
-                "error": f"Runbook not found: {runbook_filename}"
-            }), 404
+        # Configure storage backend (memory for single-instance, redis for multi-instance)
+        storage_uri = None
+        if config.RATE_LIMIT_STORAGE_BACKEND.lower() == 'redis':
+            # Redis support would require REDIS_URL env var
+            redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            storage_uri = redis_url
+            logger.info(f"Rate limiting using Redis: {redis_url}")
+        else:
+            storage_uri = "memory://"
+            logger.info("Rate limiting using in-memory storage")
         
-        # Set environment variables from query params
-        env_vars = extract_env_vars_from_request()
-        original_env = {}
-        for key, value in env_vars.items():
-            original_env[key] = os.environ.get(key)
-            os.environ[key] = value
-        
-        try:
-            runner = RunbookRunner(str(runbook_path))
-            return_code = runner.execute()
-            
-            # Reload runbook to get updated content with history
-            runner.load_runbook()
-            
-            # Build viewer link (for SPA integration - adjust URL based on your SPA deployment)
-            port = os.environ.get('API_PORT', '8083')
-            host = request.host.split(':')[0]  # Get host without port
-            # Note: This link should point to your SPA frontend, not a built-in viewer
-            viewer_link = f"http://{host}:{port}/runbook/{runbook_filename}"
-            
-            response = {
-                "success": return_code == 0,
-                "runbook": runbook_filename,
-                "return_code": return_code,
-                "viewer_link": viewer_link
-            }
-            
-            # Extract the last execution history from the updated runbook content
-            if runner.runbook_content:
-                import re
-                # Match the last history entry with stdout and stderr in code blocks
-                history_pattern = r'## (\d{4}-\d{2}-\d{2}t[\d:\.]+).*?Return Code: (\d+).*?### stdout\s*```\s*\n(.*?)```.*?### stderr\s*```\s*\n(.*?)```'
-                matches = list(re.finditer(history_pattern, runner.runbook_content, re.DOTALL))
-                if matches:
-                    last_match = matches[-1]
-                    response["stdout"] = last_match.group(3).strip()
-                    response["stderr"] = last_match.group(4).strip()
-                else:
-                    response["stdout"] = ""
-                    response["stderr"] = ""
-            else:
-                response["stdout"] = ""
-                response["stderr"] = ""
-            
-            response["errors"] = []
-            response["warnings"] = []
-            
-            status_code = 200 if return_code == 0 else 500
-            return jsonify(response), status_code
-            
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "runbook": runbook_filename
-            }), 500
-        finally:
-            # Restore original environment variables
-            for key, value in original_env.items():
-                if value is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = value
+        limiter = Limiter(
+            app=app,
+            key_func=get_remote_address,
+            default_limits=[f"{config.RATE_LIMIT_PER_MINUTE} per minute"],
+            storage_uri=storage_uri,
+            headers_enabled=True  # Add rate limit headers to responses
+        )
+        app.extensions['limiter'] = limiter
+        logger.info(f"Rate limiting enabled: {config.RATE_LIMIT_PER_MINUTE} req/min default, {config.RATE_LIMIT_EXECUTE_PER_MINUTE} exec/min")
+    else:
+        logger.info("Rate limiting disabled")
     
-    @app.route('/api/<path:runbook>', methods=['PATCH'])
-    def validate_runbook_path(runbook: str):
-        """Validate a runbook (path-based endpoint)."""
-        return validate_runbook_impl(runbook)
+    # Register Routes
+    logger.info("Registering Routes")
     
-    @app.route('/api/validate', methods=['GET'])
-    def validate_runbook():
-        """Validate a runbook (query parameter-based endpoint)."""
-        runbook_filename = request.args.get('RUNBOOK')
-        if not runbook_filename:
-            return jsonify({
-                "success": False,
-                "error": "RUNBOOK query parameter is required"
-            }), 400
-        return validate_runbook_impl(runbook_filename)
+    # Config routes
+    from src.routes.config_routes import create_config_routes
+    app.register_blueprint(create_config_routes(), url_prefix='/api/config')
+    logger.info("  /api/config")
     
-    def validate_runbook_impl(runbook_filename: str):
-        """Validate a runbook implementation."""
-        
-        runbook_path = resolve_runbook_path(runbook_filename)
-        if not runbook_path.exists():
-            return jsonify({
-                "success": False,
-                "error": f"Runbook not found: {runbook_filename}"
-            }), 404
-        
-        # Set environment variables from query params
-        env_vars = extract_env_vars_from_request()
-        original_env = {}
-        for key, value in env_vars.items():
-            original_env[key] = os.environ.get(key)
-            os.environ[key] = value
-        
-        try:
-            runner = RunbookRunner(str(runbook_path))
-            success = runner.validate()
-            
-            response = {
-                "success": success,
-                "runbook": runbook_filename,
-                "errors": runner.errors,
-                "warnings": runner.warnings
-            }
-            
-            status_code = 200 if success else 400
-            return jsonify(response), status_code
-            
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "runbook": runbook_filename
-            }), 500
-        finally:
-            # Restore original environment variables
-            for key, value in original_env.items():
-                if value is None:
-                    os.environ.pop(key, None)
-                else:
-                    os.environ[key] = value
+    # Dev login routes (if enabled)
+    if config.ENABLE_LOGIN:
+        from src.routes.dev_login_routes import create_dev_login_routes
+        app.register_blueprint(create_dev_login_routes(), url_prefix='/dev-login')
+        logger.info("  /dev-login")
     
-    @app.route('/api/runbooks', methods=['GET'])
-    def list_runbooks():
-        """List all available runbooks."""
-        if not runbooks_path.exists():
-            return jsonify({
-                "success": False,
-                "error": f"Runbooks directory not found: {runbooks_path}"
-            }), 404
-        
-        runbooks = []
-        for file_path in runbooks_path.glob('*.md'):
-            try:
-                runner = RunbookRunner(str(file_path))
-                if runner.load_runbook():
-                    runbooks.append({
-                        "filename": file_path.name,
-                        "name": runner.runbook_name,
-                        "path": str(file_path.relative_to(runbooks_path))
-                    })
-            except Exception:
-                # Skip files that can't be loaded as runbooks
-                continue
-        
-        return jsonify({
-            "success": True,
-            "runbooks": sorted(runbooks, key=lambda x: x['filename'])
-        })
+    # Explorer routes (API documentation)
+    from src.routes.explorer_routes import create_explorer_routes
+    app.register_blueprint(create_explorer_routes(), url_prefix='/docs')
+    logger.info("  /docs/<path>")
     
-    @app.route('/api/<path:runbook>/required-env', methods=['GET'])
-    def get_required_env_by_path(runbook: str):
-        """Get required environment variables for a runbook (path-based endpoint)."""
-        return get_required_env_impl(runbook)
+    # Runbook routes
+    from src.routes.runbook_routes import create_runbook_routes
+    app.register_blueprint(create_runbook_routes(config.RUNBOOKS_DIR), url_prefix='/api/runbooks')
+    logger.info("  /api/runbooks")
     
-    @app.route('/api/<path:runbook>', methods=['GET'])
-    def get_runbook_by_path(runbook: str):
-        """Get runbook content (path-based endpoint)."""
-        return get_runbook_impl(runbook)
+    # Shutdown routes
+    from src.routes.shutdown_routes import create_shutdown_routes
+    app.register_blueprint(create_shutdown_routes(), url_prefix='/api/shutdown')
+    logger.info("  /api/shutdown")
     
-    @app.route('/api/runbooks/<filename>', methods=['GET'])
-    def get_runbook(filename: str):
-        """Get runbook content (legacy endpoint)."""
-        return get_runbook_impl(filename)
-    
-    def get_required_env_impl(filename: str):
-        """Get required environment variables that are not set."""
-        runbook_path = resolve_runbook_path(filename)
-        if not runbook_path.exists():
-            return jsonify({
-                "success": False,
-                "error": f"Runbook not found: {filename}"
-            }), 404
-        
-        try:
-            runner = RunbookRunner(str(runbook_path))
-            if not runner.load_runbook():
-                return jsonify({
-                    "success": False,
-                    "error": "Failed to load runbook",
-                    "filename": filename
-                }), 500
-            
-            # Extract environment requirements
-            env_section = runner.extract_section('Environment Requirements')
-            if not env_section:
-                return jsonify({
-                    "success": True,
-                    "filename": filename,
-                    "required": [],
-                    "available": [],
-                    "missing": []
-                })
-            
-            env_vars = runner.extract_yaml_block(env_section)
-            if env_vars is None:
-                return jsonify({
-                    "success": True,
-                    "filename": filename,
-                    "required": [],
-                    "available": [],
-                    "missing": []
-                })
-            
-            # Check which variables are set in the environment
-            required = []
-            available = []
-            missing = []
-            
-            for var_name, description in env_vars.items():
-                var_info = {
-                    "name": var_name,
-                    "description": description
-                }
-                required.append(var_info)
-                
-                if var_name in os.environ and os.environ[var_name]:
-                    available.append(var_info)
-                else:
-                    missing.append(var_info)
-            
-            return jsonify({
-                "success": True,
-                "filename": filename,
-                "required": required,
-                "available": available,
-                "missing": missing
-            })
-            
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "filename": filename
-            }), 500
-    
-    def get_runbook_impl(filename: str):
-        """Get runbook content implementation."""
-        runbook_path = resolve_runbook_path(filename)
-        if not runbook_path.exists():
-            return jsonify({
-                "success": False,
-                "error": f"Runbook not found: {filename}"
-            }), 404
-        
-        try:
-            with open(runbook_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            runner = RunbookRunner(str(runbook_path))
-            runner.load_runbook()
-            
-            return jsonify({
-                "success": True,
-                "filename": filename,
-                "name": runner.runbook_name,
-                "content": content
-            })
-        except Exception as e:
-            return jsonify({
-                "success": False,
-                "error": str(e),
-                "filename": filename
-            }), 500
+    logger.info("  /metrics")
+    logger.info("Routes Registered")
     
     return app
 
 
-# Create app instance for Gunicorn (uses RUNBOOKS_DIR environment variable)
-# This allows Gunicorn to use: gunicorn src.server:app
-runbooks_dir = os.environ.get('RUNBOOKS_DIR', '.')
-app = create_app(runbooks_dir)
+# Define a signal handler for SIGTERM and SIGINT
+def handle_exit(signum, frame):
+    """Handle graceful shutdown on SIGTERM/SIGINT."""
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received signal {signum}. Initiating shutdown...")
+    logger.info("Shutdown complete.")
+    sys.exit(0)
 
+# Register the signal handler
+signal.signal(signal.SIGTERM, handle_exit)
+signal.signal(signal.SIGINT, handle_exit)
+
+# Create default app instance for Gunicorn (uses RUNBOOKS_DIR from config or env)
+# This allows Gunicorn to use: gunicorn src.server:app
+app = create_app()
+
+# Expose app for direct execution
+if __name__ == "__main__":
+    from src.config.config import Config
+    config = Config.get_instance()
+    
+    api_port = config.API_PORT
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting Flask server on port {api_port}")
+    logger.info(f"Runbooks directory: {Path(config.RUNBOOKS_DIR).resolve()}")
+    
+    # Start Flask development server
+    # Note: use_reloader=False prevents Werkzeug from reconfiguring logging in a reloader process.
+    # Logging is already configured in Config.__init__() with force=True, which handles
+    # any handlers that Werkzeug might add. Werkzeug's request logs are suppressed to WARNING
+    # level in configure_logging(), so only our application logs appear.
+    app.run(host="0.0.0.0", port=api_port, debug=False, use_reloader=False)

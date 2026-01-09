@@ -1,59 +1,86 @@
-.PHONY: validate execute api down container
+# Makefile for Stage0 Runbook API
+# Simple curl-based commands for testing runbooks
 
-# Default runbook path
-RUNBOOK ?= ./samples/runbooks/SimpleRunbook.md
+.PHONY: help dev deploy down open validate execute get-token container tail
 
-# API port (default 8083)
-API_PORT ?= 8083
+# Configuration
+API_URL ?= http://localhost:8083
+RUNBOOK ?= 
+DATA ?= {"env_vars":{}} 
 
-# Validate runbook using the deployment container
-validate:
-	docker run --rm \
-		-v $(PWD):/workspace \
-		-w /workspace \
-		-e RUNBOOK=$(RUNBOOK) \
-		$(ENV_VARS) \
-		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
-		runbook validate --runbook $(RUNBOOK)
+help:
+	@echo "Available commands:"
+	@echo "  make dev              - Start API server with local runbooks mounted (for testing runbooks)"
+	@echo "  make deploy           - Start API server with packaged runbooks (for deployment)"
+	@echo "  make down             - Stop all services"
+	@echo "  make open             - Open web UI in browser"
+	@echo "  make tail             - Tail API logs (captures terminal, Ctrl+C to exit)"
+	@echo "  make validate         - Validate a runbook (requires RUNBOOK=path/to/runbook.md)"
+	@echo "  make execute          - Execute a runbook (requires RUNBOOK=path/to/runbook.md)"
+	@echo "  make container        - Build the container image"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make dev              # Start API in dev mode (local runbooks mounted)"
+	@echo "  make deploy           # Start API in deploy mode (packaged runbooks)"
+	@echo "  make validate RUNBOOK=samples/runbooks/SimpleRunbook.md"
+	@echo "  make execute RUNBOOK=samples/runbooks/SimpleRunbook.md DATA='{\"env_vars\":{\"TEST_VAR\":\"test_value\"}}'"
 
-# Execute runbook using the deployment container
-execute:
-	docker run --rm \
-		-v $(PWD):/workspace \
-		-w /workspace \
-		-e RUNBOOK=$(RUNBOOK) \
-		$(ENV_VARS) \
-		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
-		runbook execute --runbook $(RUNBOOK)
-
-# Run the API server (restarts if already running)
-api: down
-	@echo "Starting API server container..."
-	@docker run -d --rm \
-		--name stage0_runbook_api \
-		-v $(PWD)/samples/runbooks:/workspace \
-		-w /workspace \
-		-p $(API_PORT):$(API_PORT) \
-		-e API_PORT=$(API_PORT) \
-		-e RUNBOOKS_DIR=. \
-		ghcr.io/agile-learning-institute/stage0_runbook_api:latest \
-		runbook serve --runbooks-dir . --port $(API_PORT) > /dev/null 2>&1 || true
-	@sleep 2
-	@if docker ps --format '{{.Names}}' | grep -q '^stage0_runbook_api$$'; then \
-		echo "API server started. Tailing logs (Ctrl+C to stop)..."; \
-		docker logs -f stage0_runbook_api; \
-	else \
-		echo "ERROR: Container stopped immediately. Last logs:"; \
-		docker logs stage0_runbook_api 2>/dev/null || echo "No logs available"; \
-		exit 1; \
-	fi
-
-# Stop and remove the API server container
 down:
-	@docker stop stage0_runbook_api 2>/dev/null || true
-	@echo "API server stopped"
+	@docker-compose --profile runbook-dev --profile runbook-deploy down
+
+open:
+	@echo "Opening web UI..."
+	@open http://localhost:8084 2>/dev/null || xdg-open http://localhost:8084 2>/dev/null || echo "Please open http://localhost:8084 in your browser"
+
+tail:
+	docker logs -f stage0_runbook_api
+
+get-token:
+	@curl -s -X POST $(API_URL)/dev-login \
+		-H "Content-Type: application/json" \
+		-d '{"subject": "dev-user", "roles": ["developer", "admin"]}' \
+		| jq -r '.access_token // .token // empty'
+
+validate:
+	@FILENAME=$$(basename $(RUNBOOK)); \
+	TOKEN=$$(make -s get-token); \
+	curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '$(DATA)' \
+		| jq '.' || cat
+
+execute:
+	@FILENAME=$$(basename $(RUNBOOK)); \
+	TOKEN=$$(make -s get-token); \
+	curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '$(DATA)' \
+		| jq '.' || cat
+
+# Start API server with local runbooks mounted (for runbook authors)
+dev:
+	@$(MAKE) down || true
+	@echo "Starting API server in dev mode with local runbooks mounted..."
+	@docker-compose --profile runbook-dev up -d
+	@echo "Waiting for API to be ready..."
+	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
+	@echo "API is ready at http://localhost:8083"
+	@echo "Runbooks are mounted from ./samples/runbooks"
+	@echo "Use 'make down' to stop the API"
+
+# Start API server with packaged runbooks (for deployment)
+deploy:
+	@$(MAKE) down || true
+	@echo "Starting API server in deploy mode with packaged runbooks..."
+	@docker-compose --profile runbook-deploy up -d
+	@echo "Waiting for API to be ready..."
+	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
+	@echo "API is ready at http://localhost:8083"
+	@echo "Runbooks are packaged in the container at ./runbooks"
+	@echo "Use 'make down' to stop the API"
 
 # Build the deployment container
 container:
-	docker build -t ghcr.io/agile-learning-institute/stage0_runner:latest .
-
+	@docker build -t ghcr.io/agile-learning-institute/stage0_runbook_api:latest .

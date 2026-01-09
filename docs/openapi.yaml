@@ -6,10 +6,17 @@ info:
     Runbooks are markdown files that describe automated tasks with executable scripts.
     
     ## Environment Variables
-    Environment variables required by runbooks can be passed as query parameters.
+    Environment variables required by runbooks should be passed in the request body as JSON.
     For example, to execute a runbook that requires `TEST_VAR`, use:
     ```
-    POST /api/SimpleRunbook.md?TEST_VAR=test_value
+    POST /api/runbooks/SimpleRunbook.md/execute
+    Authorization: Bearer YOUR_TOKEN
+    Content-Type: application/json
+    {
+      "env_vars": {
+        "TEST_VAR": "test_value"
+      }
+    }
     ```
   version: 0.1.0
   contact:
@@ -28,35 +35,24 @@ tags:
     description: Runbook operations (execute, validate, retrieve)
 
 paths:
-  /api/{runbook}/required-env:
+  /api/runbooks:
     get:
       tags:
         - Runbooks
-      summary: Get required environment variables
-      description: |
-        Get a list of environment variables required by a runbook, including which ones are
-        already available in the environment and which ones are missing.
-        
-        This endpoint is useful for determining which environment variables need to be
-        provided when executing a runbook.
-      operationId: getRequiredEnv
-      parameters:
-        - name: runbook
-          in: path
-          required: true
-          description: The runbook filename (e.g., SimpleRunbook.md)
-          schema:
-            type: string
-            example: SimpleRunbook.md
+      summary: List all runbooks
+      description: Retrieve a list of all available runbooks in the runbooks directory
+      operationId: listRunbooks
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: Required environment variables retrieved successfully
+          description: List of runbooks retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RequiredEnvResponse'
-        '404':
-          description: Runbook not found
+                $ref: '#/components/schemas/RunbookList'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
           content:
             application/json:
               schema:
@@ -70,112 +66,10 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X GET "http://localhost:8083/api/SimpleRunbook.md/required-env"
+            curl -X GET "http://localhost:8083/api/runbooks" \
+              -H "Authorization: Bearer YOUR_TOKEN"
 
-  /api/{runbook}:
-    post:
-      tags:
-        - Runbooks
-      summary: Execute a runbook
-      description: |
-        Execute a runbook script. The runbook file is identified by the path parameter.
-        Environment variables required by the runbook can be passed as query parameters.
-        
-        Execution will:
-        1. Validate the runbook
-        2. Execute the script
-        3. Append execution history to the runbook file
-        4. Return execution results including stdout, stderr, and a viewer link
-      operationId: executeRunbook
-      parameters:
-        - name: runbook
-          in: path
-          required: true
-          description: The runbook filename (e.g., SimpleRunbook.md)
-          schema:
-            type: string
-            example: SimpleRunbook.md
-      responses:
-        '200':
-          description: Runbook executed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExecuteResponse'
-        '400':
-          description: Bad request - validation failed or invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Runbook not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Execution failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExecuteResponse'
-      x-code-samples:
-        - lang: curl
-          source: |
-            curl -X POST "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
-
-    patch:
-      tags:
-        - Runbooks
-      summary: Validate a runbook
-      description: |
-        Validate a runbook without executing it. Checks that:
-        - The runbook file exists
-        - Required sections are present
-        - Environment variables are set
-        - File system requirements are met
-        
-        Environment variables can be passed as query parameters for validation.
-      operationId: validateRunbook
-      parameters:
-        - name: runbook
-          in: path
-          required: true
-          description: The runbook filename (e.g., SimpleRunbook.md)
-          schema:
-            type: string
-            example: SimpleRunbook.md
-      responses:
-        '200':
-          description: Runbook is valid
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidateResponse'
-        '400':
-          description: Validation failed - runbook has errors
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidateResponse'
-        '404':
-          description: Runbook not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Server error during validation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-      x-code-samples:
-        - lang: curl
-          source: |
-            curl -X PATCH "http://localhost:8083/api/SimpleRunbook.md?TEST_VAR=test_value"
-
+  /api/runbooks/{runbook}:
     get:
       tags:
         - Runbooks
@@ -184,6 +78,8 @@ paths:
         Retrieve the markdown content of a runbook file.
         This is a read-only operation that returns the full runbook including execution history.
       operationId: getRunbook
+      security:
+        - bearerAuth: []
       parameters:
         - name: runbook
           in: path
@@ -199,6 +95,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RunbookContent'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Runbook not found
           content:
@@ -214,24 +116,75 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X GET "http://localhost:8083/api/SimpleRunbook.md"
+            curl -X GET "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+              -H "Authorization: Bearer YOUR_TOKEN"
 
-  /api/runbooks:
-    get:
+  /api/runbooks/{runbook}/validate:
+    patch:
       tags:
         - Runbooks
-      summary: List all runbooks
-      description: Retrieve a list of all available runbooks in the runbooks directory
-      operationId: listRunbooks
+      summary: Validate a runbook
+      description: |
+        Validate a runbook without executing it. Checks that:
+        - The runbook file exists
+        - Required sections are present
+        - Environment variables are set
+        - File system requirements are met
+        
+        Environment variables can be passed in the request body as JSON for validation.
+      operationId: validateRunbook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+            example:
+              env_vars:
+                TEST_VAR: test_value
       responses:
         '200':
-          description: List of runbooks retrieved successfully
+          description: Runbook is valid
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RunbookList'
+                $ref: '#/components/schemas/ValidateResponse'
+        '400':
+          description: Validation failed - runbook has errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions (RBAC check failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Runbooks directory not found
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error during validation
           content:
             application/json:
               schema:
@@ -239,10 +192,177 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X GET "http://localhost:8083/api/runbooks"
+            curl -X PATCH "http://localhost:8083/api/runbooks/SimpleRunbook.md/validate" \
+              -H "Authorization: Bearer YOUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"env_vars":{"TEST_VAR":"test_value"}}'
+
+  /api/runbooks/{runbook}/execute:
+    post:
+      tags:
+        - Runbooks
+      summary: Execute a runbook
+      description: |
+        Execute a runbook script. The runbook file is identified by the path parameter.
+        Environment variables required by the runbook should be passed in the request body as JSON.
+        
+        Execution will:
+        1. Validate the runbook
+        2. Execute the script
+        3. Append execution history to the runbook file
+        4. Return execution results including stdout, stderr, and a viewer link
+      operationId: executeRunbook
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+            example:
+              env_vars:
+                TEST_VAR: test_value
+                ANOTHER_VAR: another_value
+      responses:
+        '200':
+          description: Runbook executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions (RBAC check failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Execution failed (script returned non-zero exit code or error occurred)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md/execute" \
+              -H "Authorization: Bearer YOUR_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"env_vars":{"TEST_VAR":"test_value"}}'
+
+  /api/runbooks/{runbook}/required-env:
+    get:
+      tags:
+        - Runbooks
+      summary: Get required environment variables
+      description: |
+        Get a list of environment variables required by a runbook, including which ones are
+        already available in the environment and which ones are missing.
+        
+        This endpoint is useful for determining which environment variables need to be
+        provided when executing a runbook.
+      operationId: getRequiredEnv
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: runbook
+          in: path
+          required: true
+          description: The runbook filename (e.g., SimpleRunbook.md)
+          schema:
+            type: string
+            example: SimpleRunbook.md
+      responses:
+        '200':
+          description: Required environment variables retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequiredEnvResponse'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Runbook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X GET "http://localhost:8083/api/runbooks/SimpleRunbook.md/required-env" \
+              -H "Authorization: Bearer YOUR_TOKEN"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token authentication. Include the token in the Authorization header as:
+        `Authorization: Bearer YOUR_TOKEN_HERE`
+        
+        For development, use the `/dev-login` endpoint to obtain a token.
+        For production, obtain tokens from your authentication provider.
+  
   schemas:
+    ExecuteRequest:
+      type: object
+      properties:
+        env_vars:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables to set for script execution
+          example:
+            TEST_VAR: test_value
+            ANOTHER_VAR: another_value
+      description: Request body for executing a runbook
+
+    ValidateRequest:
+      type: object
+      properties:
+        env_vars:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables to use for validation
+          example:
+            TEST_VAR: test_value
+      description: Request body for validating a runbook
+
     ExecuteResponse:
       type: object
       required:
@@ -338,7 +458,7 @@ components:
         content:
           type: string
           description: The full markdown content of the runbook
-          example: "# SimpleRunbook\n\n# Documentation\n..."
+          example: "# SimpleRunbook\n\nDescription text here.\n\n# Environment Requirements\n..."
 
     RunbookList:
       type: object

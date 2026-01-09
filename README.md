@@ -4,7 +4,7 @@ This repository contains the `stage0_runbook_api` component of the [Stage0 Runbo
 
 ## Quick Start
 
-A Runbook is a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_api/blob/harden_for_prod/samples/runbooks/Runbook.md) for instructions on setting up your own runbook system.
+A Runbook is just a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_api/blob/harden_for_prod/samples/runbooks/Runbook.md) for instructions on setting up your own runbook system.
 
 ### Using Makefile (Recommended for Testing)
 
@@ -20,10 +20,10 @@ make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
 # Execute a runbook with environment variables
 make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'
 
-# Start the API server for long-running use
+# Start the packaged API server for long-running use
 make api
 
-# Build the container locally 
+# Build the container and package runbooks
 make container
 
 # Open web UI in browser
@@ -151,49 +151,17 @@ http://localhost:8083/docs/openapi.yaml
 
 The API server uses a centralized `Config` singleton (see [`src/config/config.py`](./src/config/config.py)) that manages all configuration via environment variables with sensible defaults.
 
-**Important Configuration Variables:**
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET` | `dev-secret-change-me` | **MUST be changed in production!** Secret for JWT signing/verification |
-| `JWT_ISSUER` | `dev-idp` | Expected JWT issuer claim (must match identity provider) |
-| `JWT_AUDIENCE` | `dev-api` | Expected JWT audience claim (must match identity provider) |
-| `ENABLE_LOGIN` | `false` | Enable `/dev-login` endpoint (**NEVER enable in production**) |
-| `API_PORT` | `8083` | Port number for the API server |
-| `RUNBOOKS_DIR` | `./samples/runbooks` | Directory containing runbook files |
-| `SCRIPT_TIMEOUT_SECONDS` | `600` | Maximum script execution time (10 minutes) |
-| `MAX_OUTPUT_SIZE_BYTES` | `10485760` | Maximum script output size (10MB) |
-| `RATE_LIMIT_ENABLED` | `true` | Enable/disable rate limiting |
-| `RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute for most endpoints |
-| `RATE_LIMIT_EXECUTE_PER_MINUTE` | `10` | Executions per minute (stricter limit) |
-| `RATE_LIMIT_STORAGE_BACKEND` | `memory` | Rate limit storage: `memory` or `redis` |
-| `REDIS_URL` | - | Required if `RATE_LIMIT_STORAGE_BACKEND=redis` |
+**Key Configuration Variables:**
+- `API_PORT` - Port for the API server (default: `8083`)
+- `RUNBOOKS_DIR` - Directory containing runbooks (default: `./samples/runbooks`)
+- `ENABLE_LOGIN` - Enable `/dev-login` endpoint for development (default: `false`, **NEVER enable in production**)
+- `JWT_SECRET` - Secret for JWT signing (**MUST be changed in production**)
+- `JWT_ISSUER` - Expected JWT issuer claim
+- `JWT_AUDIENCE` - Expected JWT audience claim
 
 **For complete configuration reference**, see [`src/config/config.py`](./src/config/config.py) which defines all configuration options, their types, defaults, and how they're loaded from environment variables.
 
-**Example Configuration:**
-```bash
-export JWT_SECRET=$(openssl rand -hex 32)
-export JWT_ISSUER="your-identity-provider"
-export JWT_AUDIENCE="runbook-api-production"
-export ENABLE_LOGIN="false"
-export RATE_LIMIT_STORAGE_BACKEND="redis"
-export REDIS_URL="redis://localhost:6379/0"
-```
-
-### Docker Compose Configuration
-
-When using `docker-compose.yaml`, environment variables can be set in the `environment` section:
-
-```yaml
-environment:
-  API_PORT: 8083
-  RUNBOOKS_DIR: /workspace/runbooks
-  ENABLE_LOGIN: "true"
-  SCRIPT_TIMEOUT_SECONDS: "600"
-  MAX_OUTPUT_SIZE_BYTES: "10485760"
-  LOGGING_LEVEL: "INFO"
-```
+**For production configuration guidance**, including required settings, recommended values, and deployment examples, see the [SRE Documentation](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md#production-configuration).
 
 ## Authentication and Authorization
 
@@ -209,14 +177,9 @@ curl -X POST http://localhost:8083/dev-login \
 
 **Never enable this in production!**
 
-### Production Authentication
+### Production Authentication and RBAC
 
-Configure your identity provider to issue JWTs with:
-- `iss` (issuer) matching `JWT_ISSUER` config
-- `aud` (audience) matching `JWT_AUDIENCE` config
-- `roles` claim with user roles
-
-### Role-Based Access Control (RBAC)
+For production authentication setup, JWT configuration, and Role-Based Access Control (RBAC) details, see the [SRE Documentation](https://github.com/agile-learning-institute/stage0_runbooks/blob/main/SRE.md#authentication-and-authorization).
 
 Runbooks can specify required claims in the "Required Claims" section to control access. See [RUNBOOK.md](./RUNBOOK.md#required-claims) for details on how to specify required claims and how RBAC validation works.
 

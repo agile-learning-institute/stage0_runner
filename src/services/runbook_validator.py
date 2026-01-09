@@ -6,7 +6,7 @@ Handles validation of runbook sections, environment variables, and file system r
 import os
 import re
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict
 
 from .runbook_parser import RunbookParser
 
@@ -23,17 +23,22 @@ class RunbookValidator:
     """
     
     @staticmethod
-    def validate_runbook_content(runbook_path: Path, content: str) -> Tuple[bool, List[str], List[str]]:
+    def validate_runbook_content(runbook_path: Path, content: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[bool, List[str], List[str]]:
         """
         Validate the runbook structure and requirements.
         
         Args:
             runbook_path: Path to the runbook file
             content: Runbook content string
+            env_vars: Optional dict of environment variables to check (merged with os.environ)
             
         Returns:
             tuple: (success, errors, warnings)
         """
+        # Merge provided env_vars with os.environ for validation
+        env_to_check = dict(os.environ)
+        if env_vars:
+            env_to_check.update(env_vars)
         errors = []
         warnings = []
         
@@ -61,10 +66,10 @@ class RunbookValidator:
         # Validate Environment Requirements
         env_section = RunbookParser.extract_section(content, 'Environment Requirements')
         if env_section:
-            env_vars = RunbookParser.extract_yaml_block(env_section)
-            if env_vars is not None:
-                for var_name in env_vars.keys():
-                    if var_name not in os.environ:
+            required_env_vars = RunbookParser.extract_yaml_block(env_section)
+            if required_env_vars is not None:
+                for var_name in required_env_vars.keys():
+                    if var_name not in env_to_check:
                         errors.append(f"Required environment variable not set: {var_name}")
             else:
                 errors.append("Environment Requirements section must contain a YAML code block")

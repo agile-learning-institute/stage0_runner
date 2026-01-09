@@ -20,6 +20,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _extract_env_vars_from_request() -> dict:
+    """
+    Extract environment variables from request body.
+    Returns empty dict if no request body or env_vars not present.
+    """
+    if request.is_json and request.json:
+        return request.json.get('env_vars', {})
+    return {}
+
+
 def _apply_rate_limit(limit_str_getter):
     """
     Apply rate limiting decorator if rate limiting is enabled.
@@ -136,13 +146,21 @@ def create_runbook_routes(runbooks_dir: str):
         Args:
             filename: The runbook filename
             
+        Request body (optional):
+            {
+                "env_vars": {
+                    "VAR_NAME": "value"
+                }
+            }
+            
         Returns:
             JSON response with validation result
         """
         token = create_flask_token()
         breadcrumb = create_flask_breadcrumb(token)
+        env_vars = _extract_env_vars_from_request()
         
-        result = runbook_service.validate_runbook(filename, token, breadcrumb)
+        result = runbook_service.validate_runbook(filename, token, breadcrumb, env_vars)
         logger.info(f"validate_runbook Success {str(breadcrumb['at_time'])}, {breadcrumb['correlation_id']}")
         
         status_code = 200 if result['success'] else 400
@@ -170,11 +188,7 @@ def create_runbook_routes(runbooks_dir: str):
         """
         token = create_flask_token()
         breadcrumb = create_flask_breadcrumb(token)
-        
-        # Extract environment variables from request body
-        env_vars = {}
-        if request.is_json and request.json:
-            env_vars.update(request.json.get('env_vars', {}))
+        env_vars = _extract_env_vars_from_request()
         
         result = runbook_service.execute_runbook(filename, token, breadcrumb, env_vars)
         logger.info(f"execute_runbook Success {str(breadcrumb['at_time'])}, {breadcrumb['correlation_id']}")

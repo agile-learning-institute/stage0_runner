@@ -18,7 +18,7 @@ make api
 make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
 
 # Execute a runbook with environment variables (assumes API is running)
-make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'
+make execute RUNBOOK=samples/runbooks/SimpleRunbook.md DATA='{"env_vars":{"TEST_VAR":"test_value"}}'
 
 # Open web UI in browser (assumes API and SPA are running)
 make open
@@ -60,6 +60,12 @@ curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"env_vars":{"TEST_VAR":"test_value"}}'
+
+# Execute without environment variables (empty env_vars object)
+curl -X POST "http://localhost:8083/api/runbooks/SimpleRunbook.md" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"env_vars":{}}'
 
 # List all runbooks
 curl -X GET "http://localhost:8083/api/runbooks" \

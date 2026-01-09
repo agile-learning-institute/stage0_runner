@@ -60,7 +60,7 @@ class RunbookService:
         safe_filename = os.path.basename(filename)
         return self.runbooks_dir / safe_filename
     
-    def validate_runbook(self, filename: str, token: Dict, breadcrumb: Dict) -> Dict:
+    def validate_runbook(self, filename: str, token: Dict, breadcrumb: Dict, env_vars: dict = None) -> Dict:
         """
         Validate a runbook.
         
@@ -68,6 +68,7 @@ class RunbookService:
             filename: The runbook filename
             token: Token dictionary with user_id and claims
             breadcrumb: Breadcrumb dictionary for logging
+            env_vars: Optional dict of environment variables to use for validation
             
         Returns:
             dict: Validation result with success, errors, and warnings
@@ -92,7 +93,7 @@ class RunbookService:
             RBACAuthorizer.check_rbac(token, required_claims, 'validate')
             
             # Perform validation
-            success, errors, warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
+            success, errors, warnings = RunbookValidator.validate_runbook_content(runbook_path, content, env_vars)
             errors.extend(load_errors)
             warnings.extend(load_warnings)
             
@@ -160,7 +161,7 @@ class RunbookService:
             RBACAuthorizer.check_rbac(token, required_claims, 'execute')
             
             # Validate runbook before execution (fail-fast)
-            validation_success, validation_errors, validation_warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
+            validation_success, validation_errors, validation_warnings = RunbookValidator.validate_runbook_content(runbook_path, content, env_vars)
             if not validation_success:
                 # Return validation errors as execution failure
                 error_msg = "\n".join(validation_errors)

@@ -1,33 +1,37 @@
 # Makefile for Stage0 Runbook API
 # Simple curl-based commands for testing runbooks
 
-.PHONY: help api down open validate execute get-token container
+.PHONY: help api down open validate execute get-token container tail
 
 # Configuration
 API_URL ?= http://localhost:8083
 RUNBOOK ?= 
-ENV ?= 
+DATA ?= {"env_vars":{}} 
 
 help:
 	@echo "Available commands:"
 	@echo "  make api              - Start API server with local runbooks mounted (for testing runbooks)"
 	@echo "  make down             - Stop all services"
 	@echo "  make open             - Open web UI in browser"
+	@echo "  make tail             - Tail API logs (captures terminal, Ctrl+C to exit)"
 	@echo "  make validate         - Validate a runbook (requires RUNBOOK=path/to/runbook.md)"
 	@echo "  make execute          - Execute a runbook (requires RUNBOOK=path/to/runbook.md)"
 	@echo "  make container        - Build the container image"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make api              # Start API in one terminal"
-	@echo "  make validate RUNBOOK=samples/runbooks/SimpleRunbook.md  # In another terminal"
-	@echo "  make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'"
+	@echo "  make validate RUNBOOK=samples/runbooks/SimpleRunbook.md"
+	@echo "  make execute RUNBOOK=samples/runbooks/SimpleRunbook.md DATA='{\"env_vars\":{\"TEST_VAR\":\"test_value\"}}'"
 
 down:
-	@docker-compose -f docker-compose.yaml down
+	@docker-compose down
 
 open:
 	@echo "Opening web UI..."
 	@open http://localhost:8084 2>/dev/null || xdg-open http://localhost:8084 2>/dev/null || echo "Please open http://localhost:8084 in your browser"
+
+tail:
+	docker logs -f stage0_runbook_api
 
 get-token:
 	@curl -s -X POST $(API_URL)/dev-login \
@@ -36,62 +40,28 @@ get-token:
 		| jq -r '.access_token // .token // empty'
 
 validate:
-	@if [ -z "$(RUNBOOK)" ]; then \
-		echo "Error: RUNBOOK is required. Example: make validate RUNBOOK=samples/runbooks/SimpleRunbook.md"; \
-		exit 1; \
-	fi
-	@echo "Validating $(RUNBOOK)..."
-	@TOKEN=$$(make -s get-token); \
-	if [ -z "$$TOKEN" ]; then \
-		echo "Error: Failed to get authentication token. Is the API running?"; \
-		exit 1; \
-	fi; \
-	FILENAME=$$(basename $(RUNBOOK)); \
-	if [ -n "$(ENV)" ]; then \
-		ENV_JSON=$$(echo '$(ENV)' | tr ' ' '\n' | awk -F= '{printf "{\"key\":\"%s\",\"value\":\"%s\"}\n", $$1, $$2}' | jq -s 'map({(.key): .value}) | add'); \
-		curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
-			-H "Authorization: Bearer $$TOKEN" \
-			-H "Content-Type: application/json" \
-			-d "{\"env_vars\":$$ENV_JSON}" \
-			| jq '.' || cat; \
-	else \
-		curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
-			-H "Authorization: Bearer $$TOKEN" \
-			-H "Content-Type: application/json" \
-			| jq '.' || cat; \
-	fi
+	@FILENAME=$$(basename $(RUNBOOK)); \
+	TOKEN=$$(make -s get-token); \
+	curl -s -X PATCH "$(API_URL)/api/runbooks/$$FILENAME" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '$(DATA)' \
+		| jq '.' || cat
 
 execute:
-	@if [ -z "$(RUNBOOK)" ]; then \
-		echo "Error: RUNBOOK is required. Example: make execute RUNBOOK=samples/runbooks/SimpleRunbook.md"; \
-		exit 1; \
-	fi
-	@echo "Executing $(RUNBOOK)..."
-	@TOKEN=$$(make -s get-token); \
-	if [ -z "$$TOKEN" ]; then \
-		echo "Error: Failed to get authentication token. Is the API running?"; \
-		exit 1; \
-	fi; \
-	FILENAME=$$(basename $(RUNBOOK)); \
-	if [ -n "$(ENV)" ]; then \
-		ENV_JSON=$$(echo '$(ENV)' | tr ' ' '\n' | awk -F= '{printf "{\"key\":\"%s\",\"value\":\"%s\"}\n", $$1, $$2}' | jq -s 'map({(.key): .value}) | add'); \
-		curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
-			-H "Authorization: Bearer $$TOKEN" \
-			-H "Content-Type: application/json" \
-			-d "{\"env_vars\":$$ENV_JSON}" \
-			| jq '.' || cat; \
-	else \
-		curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
-			-H "Authorization: Bearer $$TOKEN" \
-			-H "Content-Type: application/json" \
-			| jq '.' || cat; \
-	fi
+	@FILENAME=$$(basename $(RUNBOOK)); \
+	TOKEN=$$(make -s get-token); \
+	curl -s -X POST "$(API_URL)/api/runbooks/$$FILENAME" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '$(DATA)' \
+		| jq '.' || cat
 
 # Start API server with local runbooks mounted (for runbook authors)
 api:
 	@$(MAKE) down || true
 	@echo "Starting API server with local runbooks mounted..."
-	@docker-compose -f docker-compose.yaml up -d
+	@docker-compose up -d
 	@echo "Waiting for API to be ready..."
 	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
 	@echo "API is ready at http://localhost:8083"

@@ -6,31 +6,28 @@ This repository contains the `stage0_runbook_api` component of the [Stage0 Runbo
 
 A Runbook is just a markdown file that describes an automated task. You can create a runbook for a manual task, but for an automated task it must have the proper [Runbook layout](./RUNBOOK.md). See the [Custom Runbook Template](https://github.com/agile-learning-institute/stage0_runbook_api/blob/harden_for_prod/samples/runbooks/Runbook.md) for instructions on setting up your own runbook system.
 
-### Using Makefile (Recommended for Testing)
+### Using Makefile (For Runbook Authors)
 
-The Makefile provides simple curl-based commands for testing runbooks without requiring Python or the CLI tool:
+The Makefile provides simple curl-based commands for testing runbooks without requiring Python:
 
 ```sh
-# Start API in dev mode with local runbooks mounted
-make dev
+# Start API server with local runbooks mounted (run in one terminal)
+make api
 
-# Validate a runbook (API must be running)
+# In another terminal, validate a runbook
 make validate RUNBOOK=samples/runbooks/SimpleRunbook.md
 
 # Execute a runbook with environment variables
 make execute RUNBOOK=samples/runbooks/SimpleRunbook.md ENV='TEST_VAR=test_value'
 
-# Start the packaged API server for long-running use
-make api
-
-# Build the container and package runbooks
-make container
-
 # Open web UI in browser
 make open
 
-# Stop all services
+# Stop the API server
 make down
+
+# Build the container image
+make container
 ```
 
 The Makefile uses `curl` to interact with the API:
@@ -39,6 +36,8 @@ The Makefile uses `curl` to interact with the API:
 - Formats JSON output using `jq`
 
 **Prerequisites**: `make`, `curl`, and `jq` (for JSON formatting)
+
+**Note**: `pipenv run dev` runs the API server locally (not in Docker) and is for API developers, not runbook authors.
 
 ### Using the API Directly
 
@@ -83,6 +82,8 @@ curl -X POST "http://localhost:8083/api/shutdown" \
 
 ## Developer Commands
 
+For API developers working on the API codebase:
+
 ```sh
 # Install dependencies
 pipenv install
@@ -93,59 +94,30 @@ pipenv run test
 # Run end-to-end (e2e) tests (comprehensive workflow tests)
 pipenv run e2e
 
-# Run the API server locally (development mode)
+# Run the API server locally (not in Docker, for API development)
 pipenv run dev
-
-# Start the API server in a container (uses container built by 'make container')
-make api
 
 # Build the deployment container
 make container
-
-# All together now
-make container && make api && pipenv run e2e
 ```
+
+For runbook authors testing their runbooks, use `make api` (see [Using Makefile](#using-makefile-for-runbook-authors) above).
 
 ## API Server
 
-The API server runs via Gunicorn and provides:
-- REST API endpoints for runbook operations (with JWT authentication)
-- Prometheus metrics endpoint at `/metrics`
-- API Explorer UI at `/docs/explorer.html` for interactive API documentation
-- Dev login endpoint at `/dev-login` (when `ENABLE_LOGIN=true`)
-- Config endpoint at `/api/config`
-- Shutdown endpoint at `/api/shutdown` (for graceful shutdown)
-
-### API Endpoints
-
-- `GET /api/runbooks` - List all available runbooks
-- `GET /api/runbooks/<filename>` - Get runbook content
-- `GET /api/runbooks/<filename>/required-env` - Get required environment variables
-- `PATCH /api/runbooks/<filename>/validate` - Validate a runbook
-- `POST /api/runbooks/<filename>/execute` - Execute a runbook
-- `POST /api/shutdown` - Gracefully shutdown the server
-- `GET /api/config` - Get configuration (with JWT)
-- `POST /dev-login` - Get JWT token for development (if enabled)
-- `GET /metrics` - Prometheus metrics
-- `GET /docs/<path>` - API Explorer and documentation
-
-All endpoints except `/dev-login`, `/metrics`, and `/docs` require JWT authentication.
+The API server runs via Gunicorn and provides REST API endpoints for runbook operations with JWT authentication.
 
 ### API Explorer
 
-The API Explorer is available at `/docs/explorer.html` and provides:
-- Interactive API documentation using Swagger UI
+Interactive API documentation is available at **http://localhost:8083/docs/explorer.html** when the API is running. The explorer provides:
+- Complete endpoint documentation with descriptions
 - Try-it-out functionality for testing endpoints
-- Full OpenAPI specification rendering
-- Example requests and responses
+- Request/response examples
+- Authentication testing
 
-The OpenAPI specification is available at `/docs/openapi.yaml`.
+The OpenAPI specification is available at **http://localhost:8083/docs/openapi.yaml**.
 
-**Access the explorer:**
-```
-http://localhost:8083/docs/explorer.html
-http://localhost:8083/docs/openapi.yaml
-```
+**Note**: All endpoints except `/dev-login`, `/metrics`, and `/docs` require JWT authentication.
 
 ## Configuration
 

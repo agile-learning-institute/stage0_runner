@@ -1,6 +1,6 @@
 # stage0_runbook_api
 
-This repository contains the `stage0_runbook_api` - a production-ready REST API server for executing and validating runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
+This repository contains the `stage0_runbook_api` component of the [Stage0 Runbook System](https://github.com/agile-learning-institute/stage0_runbooks) - a production-ready REST API server for validating and executing runbooks. There is a WebUI `stage0_runbook_spa` available at [GitHub stage0_runbook_spa](https://github.com/agile-learning-institute/stage0_runbook_spa)
 
 ## Quick Start
 

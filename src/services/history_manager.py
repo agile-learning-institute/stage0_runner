@@ -1,6 +1,12 @@
 """
 History manager for managing execution history in runbook files.
 
+Design Intent:
+- Full detailed history (including breadcrumbs, config, etc.) is logged to application logs
+- Only core execution info (timestamp, exit code, stdout, stderr) is written to the markdown file
+- Markdown history is for human verification only and is not persisted across container restarts
+- Users requiring persistent history should collect it from application logs
+
 Handles appending execution history and RBAC failure history to runbook files.
 """
 import json
@@ -16,10 +22,15 @@ class HistoryManager:
     """
     Manager for execution history in runbook files.
     
+    Design Intent:
+    - Full detailed history is logged to application logs (for persistence/analysis)
+    - Only core info is written to markdown (timestamp, exit code, stdout, stderr) for human verification
+    - Markdown history is ephemeral (lost on container restart) - use logs for persistence
+    
     Handles:
-    - Appending execution history as minified JSON
+    - Logging full execution history as JSON
+    - Appending human-readable markdown history to runbook file
     - Appending RBAC failure history
-    - Logging history entries
     """
     
     @staticmethod
@@ -28,7 +39,10 @@ class HistoryManager:
                       token: Dict, breadcrumb: Dict, config_items: List[Dict], 
                       errors: List[str] = None, warnings: List[str] = None) -> None:
         """
-        Append execution history to the runbook file as minified JSON.
+        Append execution history to the runbook file.
+        
+        Full detailed history (including breadcrumbs, config, etc.) is logged to application logs.
+        Only core execution info (timestamp, exit code, stdout, stderr) is written to markdown.
         
         Args:
             runbook_path: Path to the runbook file
@@ -63,7 +77,7 @@ class HistoryManager:
             "at_time": at_time_str
         }
         
-        # Build history JSON
+        # Build full history JSON for logging (includes all details)
         history_json = {
             "start_timestamp": start_timestamp,
             "finish_timestamp": finish_timestamp,
@@ -77,22 +91,36 @@ class HistoryManager:
             "warnings": warnings or []
         }
         
-        # Minify JSON (single line, no whitespace)
+        # Minify JSON for logging (single line, no whitespace)
         minified_json = json.dumps(history_json, separators=(',', ':'))
         
-        # Log the history JSON
+        # Log the full history JSON to application logs (for persistence/analysis)
         logger.log(logging.INFO, minified_json)
         
-        # Append to file
+        # Format human-readable markdown for file (core info only)
+        # Escape markdown code fence delimiters in stdout/stderr
+        stdout_escaped = stdout.replace('```', '\\`\\`\\`')
+        stderr_escaped = stderr.replace('```', '\\`\\`\\`')
+        
+        markdown_history = f"\n### {finish_timestamp} | Exit Code: {return_code}\n\n"
+        if stdout_escaped:
+            markdown_history += f"**Stdout:**\n```\n{stdout_escaped}\n```\n\n"
+        if stderr_escaped:
+            markdown_history += f"**Stderr:**\n```\n{stderr_escaped}\n```\n"
+        
+        # Append human-readable markdown to file
         with open(runbook_path, 'a', encoding='utf-8') as f:
-            f.write('\n' + minified_json)
+            f.write(markdown_history)
     
     @staticmethod
     def append_rbac_failure_history(runbook_path: Path, error_message: str, 
                                    user_id: str, operation: str, token: Dict, 
                                    breadcrumb: Dict, config_items: List[Dict]) -> None:
         """
-        Append RBAC failure to the runbook history section as minified JSON.
+        Append RBAC failure to the runbook history section.
+        
+        Full detailed history is logged to application logs.
+        Only core info (timestamp, exit code, error message) is written to markdown.
         
         Args:
             runbook_path: Path to the runbook file
@@ -104,6 +132,7 @@ class HistoryManager:
             config_items: Config items from Config singleton
         """
         timestamp = datetime.now(timezone.utc)
+        timestamp_str = timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
         
         # Add roles to breadcrumb (preserve existing breadcrumb structure)
         at_time_value = breadcrumb.get('at_time', '')
@@ -120,9 +149,10 @@ class HistoryManager:
             "at_time": at_time_str
         }
         
+        # Build full history JSON for logging (includes all details)
         history_json = {
-            "start_timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
-            "finish_timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+            "start_timestamp": timestamp_str,
+            "finish_timestamp": timestamp_str,
             "return_code": 403,
             "operation": operation,
             "breadcrumb": breadcrumb_with_roles,
@@ -133,13 +163,20 @@ class HistoryManager:
             "warnings": []
         }
         
-        # Minify JSON
+        # Minify JSON for logging
         minified_json = json.dumps(history_json, separators=(',', ':'))
         
-        # Log the history JSON
+        # Log the full history JSON to application logs (for persistence/analysis)
         logger.log(logging.INFO, minified_json)
         
-        # Append to file
+        # Format human-readable markdown for file (core info only)
+        error_msg = f"RBAC Failure: Access denied for user {user_id}. {error_message}"
+        error_msg_escaped = error_msg.replace('```', '\\`\\`\\`')
+        
+        markdown_history = f"\n### {timestamp_str} | Exit Code: 403\n\n"
+        markdown_history += f"**Error:**\n```\n{error_msg_escaped}\n```\n"
+        
+        # Append human-readable markdown to file
         with open(runbook_path, 'a', encoding='utf-8') as f:
-            f.write('\n' + minified_json)
+            f.write(markdown_history)
 

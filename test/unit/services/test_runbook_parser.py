@@ -14,13 +14,35 @@ from src.services.runbook_parser import RunbookParser
 class TestRunbookParserHistoryParsing:
     """Test parse_last_history_entry method."""
     
-    def test_parse_last_history_entry_with_valid_json(self):
-        """Test parsing last history entry with valid JSON."""
+    def test_parse_last_history_entry_with_valid_markdown(self):
+        """Test parsing last history entry with valid markdown format."""
         content = """# Test Runbook
 
 # History
-{"start_timestamp":"2024-01-01T00:00:00.000Z","stdout":"output1","stderr":"error1"}
-{"start_timestamp":"2024-01-01T00:01:00.000Z","stdout":"output2","stderr":"error2"}
+
+### 2024-01-01T00:00:00.000Z | Exit Code: 0
+
+**Stdout:**
+```
+output1
+```
+
+**Stderr:**
+```
+error1
+```
+
+### 2024-01-01T00:01:00.000Z | Exit Code: 1
+
+**Stdout:**
+```
+output2
+```
+
+**Stderr:**
+```
+error2
+```
 """
         stdout, stderr = RunbookParser.parse_last_history_entry(content)
         assert stdout == "output2"
@@ -39,10 +61,60 @@ class TestRunbookParserHistoryParsing:
         assert stdout == ""
         assert stderr == ""
     
-    def test_parse_last_history_entry_no_json_lines(self):
-        """Test parsing when no JSON lines exist."""
+    def test_parse_last_history_entry_no_history_entries(self):
+        """Test parsing when History section exists but has no entries."""
         content = "# Test Runbook\n\n# History\n\nSome text"
         stdout, stderr = RunbookParser.parse_last_history_entry(content)
         assert stdout == ""
         assert stderr == ""
+    
+    def test_parse_last_history_entry_stdout_only(self):
+        """Test parsing when only stdout is present."""
+        content = """# Test Runbook
+
+# History
+
+### 2024-01-01T00:00:00.000Z | Exit Code: 0
+
+**Stdout:**
+```
+some output
+```
+"""
+        stdout, stderr = RunbookParser.parse_last_history_entry(content)
+        assert stdout == "some output"
+        assert stderr == ""
+    
+    def test_parse_last_history_entry_stderr_only(self):
+        """Test parsing when only stderr is present."""
+        content = """# Test Runbook
+
+# History
+
+### 2024-01-01T00:00:00.000Z | Exit Code: 1
+
+**Stderr:**
+```
+some error
+```
+"""
+        stdout, stderr = RunbookParser.parse_last_history_entry(content)
+        assert stdout == ""
+        assert stderr == "some error"
+    
+    def test_parse_last_history_entry_with_escaped_code_fences(self):
+        """Test parsing when stdout/stderr contain code fence delimiters."""
+        content = """# Test Runbook
+
+# History
+
+### 2024-01-01T00:00:00.000Z | Exit Code: 0
+
+**Stdout:**
+```
+Some output with \\`\\`\\` code
+```
+"""
+        stdout, stderr = RunbookParser.parse_last_history_entry(content)
+        assert "```" in stdout
 

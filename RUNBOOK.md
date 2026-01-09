@@ -54,27 +54,39 @@ some zsh script code
 ```
 
 # History
-At the bottom of the document will be a history section where executions are recorded. This has to be at the bottom of the document, as executions will append their run data to the file.
+At the bottom of the document will be a history section where recent executions are recorded. This has to be at the bottom of the document, as executions will append their run data to the file.
+
+**Design Intent:** History in the markdown file is for human verification only and shows recent executions with core information (timestamp, exit code, stdout, stderr). Full detailed history (including breadcrumbs, config, etc.) is logged to application logs for persistence and analysis. Markdown history is ephemeral and not persisted across container restarts—users requiring persistent history should collect it from application logs.
 
 ## History Format
 
-Execution history is stored as minified JSON (single line, no whitespace) in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file and logs the same value. The history document schema is described [here](./docs/history-schema.json).
+Execution history is stored as human-readable markdown in the runbook's History section. Each execution or validation operation appends a history entry to the runbook file. **Full detailed history (including breadcrumbs, config items, operation type, etc.) is logged to application logs as JSON**—see [history schema](./docs/history-schema.json) for the complete logged format.
 
-Each history entry contains:
-- `start_timestamp` - ISO 8601 timestamp when execution started
-- `finish_timestamp` - ISO 8601 timestamp when execution finished
-- `return_code` - Exit code from script execution (0 = success, non-zero = failure)
-- `operation` - Operation type (`execute` or `validate`)
-- `breadcrumb` - Request metadata including user ID, roles, correlation ID, timestamp
-- `config_items` - Configuration values active during execution (secrets masked)
-- `stdout` - Standard output from script execution
-- `stderr` - Standard error from script execution
-- `errors` - List of validation or execution errors
-- `warnings` - List of warnings
+The markdown history entry contains only core verification information:
+- **Timestamp** - ISO 8601 timestamp when execution finished
+- **Exit Code** - Exit code from script execution (0 = success, non-zero = failure, 403 = RBAC failure)
+- **Stdout** - Standard output from script execution (if present)
+- **Stderr** - Standard error from script execution (if present) or error message for RBAC failures
 
-Example history entry (minified JSON):
-```json
-{"start_timestamp":"2026-01-23T14:32:15.314Z","finish_timestamp":"2026-01-23T14:33:02.123Z","return_code":0,"operation":"execute","breadcrumb":{"user_id":"user123","roles":["developer"],"correlation_id":"abc-123","at_time":"2026-01-23T14:32:15.314Z"},"config_items":[...],"stdout":"Script output here","stderr":"","errors":[],"warnings":[]}
+Example history entry (markdown):
+```markdown
+### 2026-01-23T14:33:02.123Z | Exit Code: 0
+
+**Stdout:**
+```
+Script output here
+```
+
+**Stderr:**
+```
+```
+
+### 2026-01-23T14:35:15.456Z | Exit Code: 403
+
+**Error:**
+```
+RBAC Failure: Access denied for user viewer123. Missing required role: developer
+```
 ```
 
 ## Execution Processing

@@ -19,8 +19,8 @@ from src.services.history_manager import HistoryManager
 class TestHistoryManager:
     """Test HistoryManager static methods."""
     
-    def test_append_history_creates_minified_json(self):
-        """Test that append_history creates minified JSON."""
+    def test_append_history_creates_markdown(self):
+        """Test that append_history creates human-readable markdown."""
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.md') as f:
             temp_path = Path(f.name)
             f.write("# Test Runbook\n\n# History\n")
@@ -34,37 +34,34 @@ class TestHistoryManager:
             
             HistoryManager.append_history(
                 temp_path, start_time, finish_time, 0, 'execute',
-                "stdout", "stderr", token, breadcrumb, config_items
+                "stdout text", "stderr text", token, breadcrumb, config_items
             )
             
-            # Read file and verify JSON was appended
+            # Read file and verify markdown was appended
             with open(temp_path, 'r') as f:
                 content = f.read()
             
-            # Should have JSON line
-            lines = content.strip().split('\n')
-            json_line = [line for line in lines if line.startswith('{')]
-            assert len(json_line) == 1
-            
-            # Parse JSON
-            history = json.loads(json_line[0])
-            assert history['return_code'] == 0
-            assert history['operation'] == 'execute'
-            assert history['stdout'] == 'stdout'
-            assert history['stderr'] == 'stderr'
-            assert history['breadcrumb']['roles'] == ['admin']
+            # Should have markdown format with timestamp, exit code, stdout, stderr
+            assert "###" in content, "Should have markdown heading (###)"
+            assert "Exit Code: 0" in content, "Should show exit code"
+            assert "**Stdout:**" in content, "Should have stdout section"
+            assert "**Stderr:**" in content, "Should have stderr section"
+            assert "stdout text" in content, "Should contain stdout content"
+            assert "stderr text" in content, "Should contain stderr content"
+            assert finish_time.strftime('%Y-%m-%dT%H:%M:%S') in content, "Should contain timestamp"
         finally:
             os.unlink(temp_path)
     
     def test_append_rbac_failure_history(self):
-        """Test that append_rbac_failure_history creates RBAC failure entry."""
+        """Test that append_rbac_failure_history creates RBAC failure entry in markdown."""
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.md') as f:
             temp_path = Path(f.name)
             f.write("# Test Runbook\n\n# History\n")
         
         try:
             token = {"user_id": "test_user", "roles": ["viewer"]}
-            breadcrumb = {"at_time": datetime.now(timezone.utc), "correlation_id": "test-123"}
+            timestamp = datetime.now(timezone.utc)
+            breadcrumb = {"at_time": timestamp, "correlation_id": "test-123"}
             config_items = []
             
             HistoryManager.append_rbac_failure_history(
@@ -72,17 +69,16 @@ class TestHistoryManager:
                 token, breadcrumb, config_items
             )
             
-            # Read file and verify JSON was appended
+            # Read file and verify markdown was appended
             with open(temp_path, 'r') as f:
                 content = f.read()
             
-            lines = content.strip().split('\n')
-            json_line = [line for line in lines if line.startswith('{')]
-            assert len(json_line) == 1
-            
-            history = json.loads(json_line[0])
-            assert history['return_code'] == 403
-            assert 'RBAC Failure' in history['errors'][0]
+            # Should have markdown format with timestamp, exit code 403, error message
+            assert "###" in content, "Should have markdown heading (###)"
+            assert "Exit Code: 403" in content, "Should show exit code 403"
+            assert "**Error:**" in content, "Should have error section"
+            assert "RBAC Failure" in content, "Should contain RBAC failure message"
+            assert "test_user" in content, "Should contain user ID"
         finally:
             os.unlink(temp_path)
 

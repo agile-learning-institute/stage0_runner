@@ -251,7 +251,23 @@ class RunbookParser:
     @staticmethod
     def parse_last_history_entry(content: str) -> Tuple[str, str]:
         """
-        Parse the last history JSON entry from runbook content.
+        Parse the last history entry from runbook content.
+        
+        History is stored as human-readable markdown. This method extracts
+        stdout and stderr from the most recent history entry.
+        
+        Format expected:
+        ### <timestamp> | Exit Code: <code>
+        
+        **Stdout:**
+        ```
+        <stdout>
+        ```
+        
+        **Stderr:**
+        ```
+        <stderr>
+        ```
         
         Returns:
             tuple: (stdout, stderr)
@@ -259,7 +275,7 @@ class RunbookParser:
         if not content:
             return "", ""
         
-        # Find all JSON lines after "# History" header
+        # Find history section
         history_section_start = content.find('# History')
         if history_section_start == -1:
             return "", ""
@@ -267,23 +283,53 @@ class RunbookParser:
         # Get content after History header
         history_content = content[history_section_start:]
         
-        # Extract all JSON lines (lines that start with {)
-        json_lines = []
-        for line in history_content.split('\n'):
-            line = line.strip()
-            if line.startswith('{') and line.endswith('}'):
-                json_lines.append(line)
+        # Find the last history entry (starts with ###)
+        entries = []
+        current_entry_start = -1
+        lines = history_content.split('\n')
         
-        if not json_lines:
+        for i, line in enumerate(lines):
+            if line.strip().startswith('###'):
+                if current_entry_start != -1:
+                    # Save previous entry
+                    entries.append('\n'.join(lines[current_entry_start:i]))
+                current_entry_start = i
+        
+        # Add last entry if exists
+        if current_entry_start != -1:
+            entries.append('\n'.join(lines[current_entry_start:]))
+        
+        if not entries:
             return "", ""
         
-        # Parse the last JSON line
-        try:
-            last_entry = json.loads(json_lines[-1])
-            stdout = last_entry.get('stdout', '')
-            stderr = last_entry.get('stderr', '')
-            return stdout, stderr
-        except json.JSONDecodeError:
-            logger.warning("Failed to parse last history entry JSON")
-            return "", ""
+        # Parse the last entry
+        last_entry = entries[-1]
+        stdout = ""
+        stderr = ""
+        
+        # Extract stdout (between **Stdout:** and next ** or end)
+        stdout_start = last_entry.find('**Stdout:**')
+        if stdout_start != -1:
+            stdout_content = last_entry[stdout_start:]
+            code_start = stdout_content.find('```')
+            if code_start != -1:
+                code_end = stdout_content.find('```', code_start + 3)
+                if code_end != -1:
+                    stdout = stdout_content[code_start + 3:code_end].strip()
+        
+        # Extract stderr (between **Stderr:** and next ** or end)
+        stderr_start = last_entry.find('**Stderr:**')
+        if stderr_start != -1:
+            stderr_content = last_entry[stderr_start:]
+            code_start = stderr_content.find('```')
+            if code_start != -1:
+                code_end = stderr_content.find('```', code_start + 3)
+                if code_end != -1:
+                    stderr = stderr_content[code_start + 3:code_end].strip()
+        
+        # Unescape markdown code fence delimiters
+        stdout = stdout.replace('\\`\\`\\`', '```')
+        stderr = stderr.replace('\\`\\`\\`', '```')
+        
+        return stdout, stderr
 

@@ -1309,15 +1309,15 @@ def test_execute_runbook_general_exception():
 
 
 def test_get_runbook_exception():
-    """Test get_runbook when an exception occurs."""
+    """Test get_runbook when an exception occurs during file read."""
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
     token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
     breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
     
-    # Mock load_runbook to raise exception
-    with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
+    # Mock open() to raise exception when reading file
+    with patch('builtins.open', side_effect=IOError("Permission denied")):
         with pytest.raises(HTTPInternalServerError, match="Failed to read runbook"):
             service.get_runbook('SimpleRunbook.md', token, breadcrumb)
 

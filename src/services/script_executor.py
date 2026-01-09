@@ -216,7 +216,8 @@ class ScriptExecutor:
                     os.environ[key] = original_value
                     logger.debug(f"Restored environment: {key} = {original_value[:50] if len(str(original_value)) > 50 else original_value}...")
     
-    def _truncate_output(self, output: str, max_bytes: int) -> Tuple[str, bool]:
+    @staticmethod
+    def _truncate_output(output: str, max_bytes: int) -> Tuple[str, bool]:
         """
         Truncate output to max_bytes while preserving UTF-8 boundaries.
         

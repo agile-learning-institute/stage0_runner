@@ -16,6 +16,7 @@ pytest = "*"
 [dev-packages]
 pytest = "*"
 pytest-cov = "*"
+requests = "*"
 
 [scripts]
 test = "pytest test/unit test/integration -v"

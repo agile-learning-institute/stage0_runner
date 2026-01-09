@@ -95,7 +95,7 @@ class HistoryManager:
         minified_json = json.dumps(history_json, separators=(',', ':'))
         
         # Log the full history JSON to application logs (for persistence/analysis)
-        logger.log(logging.INFO, minified_json)
+        logger.info(minified_json)
         
         # Format human-readable markdown for file (core info only)
         # Escape markdown code fence delimiters in stdout/stderr
@@ -167,7 +167,7 @@ class HistoryManager:
         minified_json = json.dumps(history_json, separators=(',', ':'))
         
         # Log the full history JSON to application logs (for persistence/analysis)
-        logger.log(logging.INFO, minified_json)
+        logger.info(minified_json)
         
         # Format human-readable markdown for file (core info only)
         error_msg = f"RBAC Failure: Access denied for user {user_id}. {error_message}"

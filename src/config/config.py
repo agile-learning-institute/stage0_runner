@@ -164,34 +164,61 @@ class Config:
         """
         Configure Python logging based on the LOGGING_LEVEL configuration.
         
-        This method:
-        - Validates and sets the logging level from LOGGING_LEVEL config
-        - Resets all existing logging handlers
-        - Configures basic logging with a standard format
-        - Suppresses noisy HTTP-related loggers (httpcore, httpx)
-        - Logs the initialized configuration items
+        This method is called once during Config singleton initialization to set up
+        Python logging with the configured level and format. It uses force=True to
+        ensure logging is properly configured even if handlers already exist.
         
         The logging format includes timestamp, level, logger name, and message.
+        Werkzeug request logs are suppressed to WARNING level to reduce noise.
         """
-        # Make sure we have a valid logging level
-        self.LOGGING_LEVEL = getattr(logging, self.LOGGING_LEVEL, logging.INFO)
+        # Convert LOGGING_LEVEL string to logging constant
+        if isinstance(self.LOGGING_LEVEL, str):
+            logging_level = getattr(logging, self.LOGGING_LEVEL, logging.INFO)
+            self.LOGGING_LEVEL = logging_level  # Store as integer
+        elif isinstance(self.LOGGING_LEVEL, int):
+            logging_level = self.LOGGING_LEVEL
+        else:
+            logging_level = logging.INFO
+            self.LOGGING_LEVEL = logging_level
         
-        # Reset logging handlers
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
+        # Configure logging with force=True to reconfigure even if handlers exist
+        # (e.g., if Flask/Werkzeug has already configured handlers)
+        import sys
+        if sys.version_info >= (3, 8):
+            logging.basicConfig(
+                level=logging_level,
+                format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                force=True
+            )
+        else:
+            # For Python < 3.8, reset handlers manually first
+            for handler in logging.root.handlers[:]:
+                logging.root.removeHandler(handler)
+            logging.basicConfig(
+                level=logging_level,
+                format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+        
+        # Ensure root logger level is set (child loggers inherit this)
+        logging.root.setLevel(logging_level)
 
-        # Configure logger
-        logging.basicConfig(
-            level=self.LOGGING_LEVEL,
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
+        # Suppress noisy HTTP-related loggers
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        
+        # Suppress Werkzeug request logs (set to WARNING to reduce noise)
+        werkzeug_logger = logging.getLogger("werkzeug")
+        werkzeug_logger.setLevel(logging.WARNING)
+        werkzeug_logger.propagate = True
+        
+        # Configure Flask's logger
+        flask_logger = logging.getLogger("flask.app")
+        flask_logger.setLevel(logging_level)
+        flask_logger.propagate = True
 
-        # Suppress noisy http logging
-        logging.getLogger("httpcore").setLevel(logging.WARNING)  
-        logging.getLogger("httpx").setLevel(logging.WARNING)  
-
-        # Log configuration
+        # Log configuration initialization
         logger.info(f"Configuration Initialized: {self.config_items}")
         
         return

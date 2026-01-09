@@ -29,7 +29,7 @@ def create_app():
     Returns:
         Flask application instance
     """
-    # Initialize Config Singleton
+    # Initialize Config Singleton (this configures logging in __init__)
     from src.config.config import Config
     config = Config.get_instance()
     
@@ -127,8 +127,15 @@ app = create_app()
 if __name__ == "__main__":
     from src.config.config import Config
     config = Config.get_instance()
+    
     api_port = config.API_PORT
     logger = logging.getLogger(__name__)
     logger.info(f"Starting Flask server on port {api_port}")
     logger.info(f"Runbooks directory: {Path(config.RUNBOOKS_DIR).resolve()}")
-    app.run(host="0.0.0.0", port=api_port, debug=False)
+    
+    # Start Flask development server
+    # Note: use_reloader=False prevents Werkzeug from reconfiguring logging in a reloader process.
+    # Logging is already configured in Config.__init__() with force=True, which handles
+    # any handlers that Werkzeug might add. Werkzeug's request logs are suppressed to WARNING
+    # level in configure_logging(), so only our application logs appear.
+    app.run(host="0.0.0.0", port=api_port, debug=False, use_reloader=False)

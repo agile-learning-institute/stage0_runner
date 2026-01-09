@@ -67,6 +67,10 @@ def setup_and_teardown():
 @pytest.fixture
 def flask_app():
     """Create Flask app for testing."""
+    # Reset Config singleton to pick up new environment variables
+    from src.config.config import Config
+    Config._instance = None
+    
     # Set test environment
     os.environ['ENABLE_LOGIN'] = 'true'
     os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent / 'samples' / 'runbooks')

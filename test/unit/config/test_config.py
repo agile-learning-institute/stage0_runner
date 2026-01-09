@@ -59,7 +59,8 @@ class TestConfigDefaults:
         """Test default string values."""
         config = Config.get_instance()
         assert config.BUILT_AT == "LOCAL"
-        assert config.LOGGING_LEVEL == "INFO"
+        # LOGGING_LEVEL is converted to int by configure_logging(), check default instead
+        assert config.get_default('LOGGING_LEVEL') == "INFO"
         assert config.RUNBOOKS_DIR == "./samples/runbooks"
         assert config.RATE_LIMIT_STORAGE_BACKEND == "memory"
     

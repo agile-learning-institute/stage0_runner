@@ -38,7 +38,7 @@ def test_extract_sections():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Test section extraction
@@ -52,7 +52,7 @@ def test_extract_env_vars():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     env_section = RunbookParser.extract_section(content, 'Environment Requirements')
@@ -66,7 +66,7 @@ def test_extract_required_claims():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     required_claims = RBACAuthorizer.extract_required_claims(content)
@@ -81,7 +81,7 @@ def test_validate_runbook_content():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Set required environment variable
@@ -102,7 +102,7 @@ def test_validate_missing_env_var():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Ensure TEST_VAR is not set
@@ -152,7 +152,7 @@ Output:
         config.MAX_OUTPUT_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
         
         # Create a temporary runbook file
-        test_runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_timeout_runbook.md'
+        test_runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_timeout_runbook.md'
         with open(test_runbook_path, 'w') as f:
             f.write(runbook_content)
         
@@ -215,7 +215,7 @@ Output:
         config.SCRIPT_TIMEOUT_SECONDS = 60  # 60 seconds should be enough
         
         # Create a temporary runbook file
-        test_runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_output_limit_runbook.md'
+        test_runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_output_limit_runbook.md'
         with open(test_runbook_path, 'w') as f:
             f.write(runbook_content)
         
@@ -247,16 +247,16 @@ def test_resource_monitoring_logging():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     # Set required environment variable
     os.environ['TEST_VAR'] = 'test_value'
     
     try:
-        # Use patch to capture log messages
+        # Use patch to capture log messages from ScriptExecutor
         import logging
-        with patch('services.runbook_service.logger') as mock_logger:
+        with patch('src.services.script_executor.logger') as mock_logger:
             script = RunbookParser.extract_script(content)
             return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
@@ -265,11 +265,11 @@ def test_resource_monitoring_logging():
             
             # Should log execution start with resource limits
             assert any('timeout' in str(call).lower() or 'max_output' in str(call).lower() for call in info_calls), \
-                "Should log resource limits before execution"
+                f"Should log resource limits before execution. Got: {info_calls}"
             
             # Should log execution completion with resource usage
             assert any('execution_time' in str(call).lower() or 'execution completed' in str(call).lower() for call in info_calls), \
-                "Should log execution time and resource usage after completion"
+                f"Should log execution time and resource usage after completion. Got: {info_calls}"
                 
     finally:
         # Clean up
@@ -503,7 +503,7 @@ echo "test"
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_rbac_runbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_rbac_runbook.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -532,7 +532,7 @@ def test_load_runbook_empty_content():
     service = RunbookService(runbooks_dir)
     
     # Create empty runbook file
-    empty_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'empty_runbook.md'
+    empty_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'empty_runbook.md'
     with open(empty_path, 'w') as f:
         f.write('')
     
@@ -681,7 +681,7 @@ Output:
   - /path/to/output2.txt
 ```"""
     
-    result = service._extract_file_requirements(yaml_content)
+    result = RunbookParser.extract_file_requirements(yaml_content)
     assert 'Input' in result, "Should have Input key"
     assert 'Output' in result, "Should have Output key"
     assert len(result['Input']) == 2, "Should extract 2 input files"
@@ -700,7 +700,7 @@ Input: /path/to/single_input.txt
 Output: /path/to/single_output.txt
 ```"""
     
-    result = service._extract_file_requirements(yaml_content)
+    result = RunbookParser.extract_file_requirements(yaml_content)
     assert isinstance(result['Input'], list), "Input should be a list"
     assert isinstance(result['Output'], list), "Output should be a list"
     assert len(result['Input']) == 1, "Should have one input file"
@@ -719,7 +719,7 @@ Input:
   invalid: yaml: structure
 ```"""
     
-    result = service._extract_file_requirements(yaml_content)
+    result = RunbookParser.extract_file_requirements(yaml_content)
     # Should return default empty requirements on error
     assert 'Input' in result, "Should have Input key"
     assert 'Output' in result, "Should have Output key"
@@ -746,7 +746,7 @@ echo "test"
 # History
 """
     
-    result = service._extract_required_claims(content)
+    result = RunbookParser.extract_required_claims(content)
     assert result is None, "Should return None when Required Claims section doesn't exist"
 
 
@@ -767,10 +767,16 @@ def test_resolve_runbook_path_path_traversal():
     
     for malicious_path in malicious_paths:
         resolved = service._resolve_runbook_path(malicious_path)
-        # Should resolve to runbooks_dir + basename only
-        assert malicious_path not in str(resolved), f"Path traversal detected: {malicious_path}"
-        assert service.runbooks_dir in str(resolved) or str(resolved).startswith('/tmp'), \
-            f"Resolved path should be in runbooks_dir or temp: {resolved}"
+        # Should resolve to runbooks_dir + basename only (os.path.basename sanitizes the path)
+        resolved_str = str(resolved)
+        # The basename might contain the original path as a filename, which is acceptable
+        # The important check is that it's within runbooks_dir
+        assert str(service.runbooks_dir) in resolved_str, \
+            f"Resolved path should be in runbooks_dir: {resolved} (from {malicious_path})"
+        # Verify it's just the basename, not the full malicious path
+        basename = os.path.basename(malicious_path)
+        assert resolved.name == basename or resolved.name == os.path.basename(basename), \
+            f"Resolved filename should be sanitized basename: {resolved.name}"
 
 
 def test_execute_script_empty_script():
@@ -794,7 +800,7 @@ Output:
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_empty_script.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_empty_script.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -817,14 +823,14 @@ def test_temp_directory_isolation():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
     
     try:
         # Mock tempfile.mkdtemp to capture the directory used
-        with patch('services.runbook_service.tempfile.mkdtemp') as mock_mkdtemp:
+        with patch('src.services.script_executor.tempfile.mkdtemp') as mock_mkdtemp:
             mock_temp_dir = '/tmp/runbook-exec-test123'
             mock_mkdtemp.return_value = mock_temp_dir
             
@@ -864,7 +870,7 @@ exit 1
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_error_cleanup.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_error_cleanup.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -885,7 +891,7 @@ def test_file_permissions_on_temp_script():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
@@ -893,7 +899,7 @@ def test_file_permissions_on_temp_script():
     try:
         import stat
         
-        with patch('services.runbook_service.os.chmod') as mock_chmod:
+        with patch('src.services.script_executor.os.chmod') as mock_chmod:
             script = RunbookParser.extract_script(content)
             return_code, stdout, stderr = ScriptExecutor.execute_script(script)
             
@@ -959,7 +965,7 @@ def test_invalid_env_var_name_rejected():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
@@ -993,7 +999,7 @@ def test_valid_env_var_names_accepted():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
@@ -1044,7 +1050,7 @@ echo "Value: ${TEST_VAR}"
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_sanitization.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_sanitization.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -1091,7 +1097,7 @@ echo "${TEST_VAR}" | wc -l
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_newlines.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'test_newlines.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -1102,9 +1108,11 @@ echo "${TEST_VAR}" | wc -l
         value_with_newlines = 'line1\nline2\nline3'
         value_with_tabs = 'col1\tcol2\tcol3'
         
-        return_code1, stdout1, stderr1 = script = RunbookParser.extract_script(runbook_content); return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': value_with_newlines})
+        script1 = RunbookParser.extract_script(runbook_content)
+        return_code1, stdout1, stderr1 = ScriptExecutor.execute_script(script1, env_vars={'TEST_VAR': value_with_newlines})
         
-        return_code2, stdout2, stderr2 = script = RunbookParser.extract_script(runbook_content); return_code, stdout, stderr = ScriptExecutor.execute_script(script, env_vars={'TEST_VAR': value_with_tabs})
+        script2 = RunbookParser.extract_script(runbook_content)
+        return_code2, stdout2, stderr2 = ScriptExecutor.execute_script(script2, env_vars={'TEST_VAR': value_with_tabs})
         
         # Should execute successfully
         assert return_code1 == 0 or "ERROR" not in stderr1, \
@@ -1124,7 +1132,7 @@ def test_env_var_none_value_converted():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'
@@ -1147,7 +1155,7 @@ def test_env_var_non_string_value_converted():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
     content, name, errors, warnings = RunbookParser.load_runbook(runbook_path)
     
     os.environ['TEST_VAR'] = 'test_value'

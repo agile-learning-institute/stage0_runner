@@ -27,6 +27,10 @@ from src.flask_utils.token import Token
 @pytest.fixture
 def flask_app():
     """Create Flask app for testing."""
+    # Reset Config singleton to pick up new environment variables
+    from src.config.config import Config
+    Config._instance = None
+    
     # Set test environment
     os.environ['ENABLE_LOGIN'] = 'true'
     os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent.parent / 'samples' / 'runbooks')
@@ -158,7 +162,7 @@ def test_validate_runbook_endpoint(client, dev_token):
         response = client.patch(
             '/api/runbooks/SimpleRunbook.md/validate',
             headers={'Authorization': f'Bearer {dev_token}'},
-            content_type='application/json'
+            json={}  # Send empty JSON body
         )
         
         assert response.status_code in [200, 400]  # 200 if valid, 400 if invalid
@@ -320,7 +324,7 @@ echo "test"
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_rbac_enforcement.md'
+    runbook_path = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'test_rbac_enforcement.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -366,7 +370,7 @@ echo "test"
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_rbac_validate.md'
+    runbook_path = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'test_rbac_validate.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -374,7 +378,7 @@ echo "test"
         response = client.patch(
             '/api/runbooks/test_rbac_validate.md/validate',
             headers={'Authorization': f'Bearer {viewer_token}'},
-            content_type='application/json'
+            json={}  # Send empty JSON body
         )
         
         # Should return 403 Forbidden
@@ -505,7 +509,7 @@ echo "test"
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_error_format.md'
+    runbook_path = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'test_error_format.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -560,7 +564,7 @@ exit 1
 # History
 """
     
-    runbook_path = Path(__file__).parent.parent / 'samples' / 'runbooks' / 'test_500_error.md'
+    runbook_path = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'test_500_error.md'
     with open(runbook_path, 'w') as f:
         f.write(runbook_content)
     
@@ -602,20 +606,24 @@ def test_docs_endpoint_public(client):
 
 def test_shutdown_endpoint(client, dev_token):
     """Test POST /api/shutdown endpoint."""
-    # Note: In test environment, shutdown may not actually work
+    # Note: In test environment, shutdown may raise SystemExit
     # but we can verify the endpoint exists and requires auth
-    response = client.post(
-        '/api/shutdown',
-        headers={'Authorization': f'Bearer {dev_token}'},
-        content_type='application/json'
-    )
-    
-    # Should return 200 (shutdown initiated) or handle gracefully
-    assert response.status_code in [200, 500]  # 500 if shutdown not available in test
-    if response.status_code == 200:
-        data = json.loads(response.data)
-        assert 'message' in data
-        assert 'shutdown' in data['message'].lower()
+    try:
+        response = client.post(
+            '/api/shutdown',
+            headers={'Authorization': f'Bearer {dev_token}'},
+            json={}
+        )
+        
+        # Should return 200 (shutdown initiated) or handle gracefully
+        assert response.status_code in [200, 500]  # 500 if shutdown not available in test
+        if response.status_code == 200:
+            data = json.loads(response.data)
+            assert 'message' in data
+            assert 'shutdown' in data['message'].lower()
+    except SystemExit:
+        # SystemExit is expected when shutdown signal is sent
+        pass
 
 
 def test_shutdown_endpoint_requires_auth(client):

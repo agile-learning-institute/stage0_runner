@@ -17,7 +17,7 @@ pytest = "*"
 pytest = "*"
 
 [scripts]
-test = "pytest test -v"
+test = "pytest test/unit test/integration -v"
 e2e = "pytest test/e2e -v"
 dev = "python src/server.py"
 

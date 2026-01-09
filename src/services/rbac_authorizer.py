@@ -69,7 +69,11 @@ class RBACAuthorizer:
             
             # Convert token value to list if it's a string
             if isinstance(token_value, str):
-                token_value_list = [token_value]
+                # Handle comma-separated values
+                if ',' in token_value:
+                    token_value_list = [v.strip() for v in token_value.split(',')]
+                else:
+                    token_value_list = [token_value]
             elif isinstance(token_value, list):
                 token_value_list = token_value
             else:

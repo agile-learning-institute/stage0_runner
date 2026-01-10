@@ -200,14 +200,14 @@ class Config:
                 format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S"
             )
-        
+
         # Ensure root logger level is set (child loggers inherit this)
         logging.root.setLevel(logging_level)
 
         # Suppress noisy HTTP-related loggers
-        logging.getLogger("httpcore").setLevel(logging.WARNING)
-        logging.getLogger("httpx").setLevel(logging.WARNING)
-        
+        logging.getLogger("httpcore").setLevel(logging.WARNING)  
+        logging.getLogger("httpx").setLevel(logging.WARNING)  
+
         # Suppress Werkzeug request logs (set to WARNING to reduce noise)
         werkzeug_logger = logging.getLogger("werkzeug")
         werkzeug_logger.setLevel(logging.WARNING)

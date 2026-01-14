@@ -29,6 +29,9 @@ echo ""
 echo "=== Docker Commands (demonstration - not executed) ==="
 echo "docker build -f ./CreatePackage.dockerfile"
 echo ""
+echo "=== Dockerfile Content ==="
+cat ./CreatePackage.dockerfile
+echo ""
 echo "Create Package Completed (demo mode)"
 ```
 

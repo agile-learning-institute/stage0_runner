@@ -13,7 +13,7 @@ Input:
 
 # Required Claims
 ```yaml
-roles: developer, admin
+roles: sre, data, api, ux
 ```
 Optional section. If present, the token must include the specified claims to execute or validate the runbook.
 - `roles`: List of roles (comma-separated) that are allowed to execute/validate this runbook

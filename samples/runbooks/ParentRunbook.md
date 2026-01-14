@@ -13,7 +13,7 @@ Input:
 
 # Required Claims
 ```yaml
-roles: developer, admin
+roles: sre
 ```
 
 # Script

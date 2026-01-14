@@ -15,7 +15,7 @@ Input:
 
 # Required Claims
 ```yaml
-roles: developer, admin, devops
+roles: sre, api
 ```
 This runbook requires elevated permissions to push to GitHub Container Registry.
 

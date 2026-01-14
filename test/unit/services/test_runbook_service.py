@@ -98,7 +98,7 @@ def test_extract_required_claims():
     # SimpleRunbook should have required claims section
     assert required_claims is not None, "Should extract required claims"
     assert 'roles' in required_claims, "Should have roles claim"
-    assert 'developer' in required_claims['roles'] or 'admin' in required_claims['roles'], "Should include developer or admin role"
+    assert 'sre' in required_claims['roles'] or 'api' in required_claims['roles'], "Should include sre or api role"
 
 
 def test_validate_runbook_content():
@@ -1253,7 +1253,7 @@ def test_execute_runbook_validation_failure():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    token = {'user_id': 'test-user', 'roles': ['sre', 'api'], 'claims': {'roles': ['sre', 'api']}}
     breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
     
     runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -1273,7 +1273,7 @@ def test_execute_runbook_no_script():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    token = {'user_id': 'test-user', 'roles': ['sre', 'api'], 'claims': {'roles': ['sre', 'api']}}
     breadcrumb = {'at_time': '2026-01-01T00:00:00Z', 'correlation_id': 'test-123'}
     
     runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
@@ -1494,7 +1494,7 @@ def test_execute_runbook_recursion_stack_building():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    token = {'user_id': 'test-user', 'roles': ['sre', 'api'], 'claims': {'roles': ['sre', 'api']}}
     breadcrumb = {
         'at_time': '2026-01-01T00:00:00Z',
         'correlation_id': 'test-123',
@@ -1528,7 +1528,7 @@ def test_execute_runbook_top_level_execution():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    token = {'user_id': 'test-user', 'roles': ['sre', 'api'], 'claims': {'roles': ['sre', 'api']}}
     breadcrumb = {
         'at_time': '2026-01-01T00:00:00Z',
         'correlation_id': 'test-123',
@@ -1557,7 +1557,7 @@ def test_execute_runbook_passes_token_and_correlation():
     runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
     service = RunbookService(runbooks_dir)
     
-    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    token = {'user_id': 'test-user', 'roles': ['sre', 'api'], 'claims': {'roles': ['sre', 'api']}}
     breadcrumb = {
         'at_time': '2026-01-01T00:00:00Z',
         'correlation_id': 'test-correlation-456',

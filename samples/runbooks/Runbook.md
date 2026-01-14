@@ -9,8 +9,6 @@ TEST_VAR: A test environment variable for demonstration purposes
 ```yaml
 Input:
 - file spec
-Output:
-- dir spec
 ```
 
 # Required Claims

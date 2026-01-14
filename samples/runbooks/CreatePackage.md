@@ -10,7 +10,6 @@ GITHUB_TOKEN: A github classic token with package:write Privileges
 ```yaml
 Input:
 - ./CreatePackage.dockerfile
-Output:
 ```
 
 # Required Claims

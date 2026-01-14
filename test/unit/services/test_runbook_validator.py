@@ -37,7 +37,6 @@ TEST_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -64,7 +63,6 @@ TEST_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -90,7 +88,6 @@ No YAML here
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -113,7 +110,6 @@ def test_validate_env_requirements_missing_section():
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -141,7 +137,6 @@ TEST_VAR: required
 ```yaml
 Input:
   - /nonexistent/file/path.txt
-Output:
 ```
 # Script
 ```sh
@@ -154,34 +149,6 @@ echo "test"
     
     assert success is False
     assert any("Required input file does not exist" in err for err in errors)
-
-
-def test_validate_file_system_requirements_missing_output_parent():
-    """Test validation fails when output directory parent doesn't exist."""
-    runbook_path = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-    
-    content = """# TestRunbook
-# Environment Requirements
-```yaml
-TEST_VAR: required
-```
-# File System Requirements
-```yaml
-Input:
-Output:
-  - /nonexistent/parent/dir/output.txt
-```
-# Script
-```sh
-echo "test"
-```
-# History
-"""
-    
-    success, errors, warnings = RunbookValidator.validate_runbook_content(runbook_path, content)
-    
-    assert success is False
-    assert any("Output directory parent does not exist" in err for err in errors)
 
 
 def test_validate_file_system_requirements_no_yaml():
@@ -226,7 +193,6 @@ TEST_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # History
 """
@@ -250,7 +216,6 @@ TEST_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -277,7 +242,6 @@ TEST_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -316,7 +280,6 @@ CUSTOM_VAR: required
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh

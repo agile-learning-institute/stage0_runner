@@ -9,7 +9,6 @@ TEST_VAR: A test environment variable to pass to the child runbook
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 
 # Required Claims

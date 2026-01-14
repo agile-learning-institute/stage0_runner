@@ -205,9 +205,9 @@ class RunbookParser:
             section_content: Content of File System Requirements section
             
         Returns:
-            Dictionary with 'Input' and 'Output' keys, each containing a list of file paths
+            Dictionary with 'Input' key containing a list of file/folder paths
         """
-        requirements = {'Input': [], 'Output': []}
+        requirements = {'Input': []}
         
         if not section_content:
             return requirements
@@ -232,7 +232,7 @@ class RunbookParser:
                 logger.warning(f"File requirements YAML did not parse to a dictionary, got {type(parsed_yaml)}")
                 return requirements
             
-            # Extract Input and Output lists
+            # Extract Input list
             if 'Input' in parsed_yaml:
                 input_value = parsed_yaml['Input']
                 if isinstance(input_value, list):
@@ -240,14 +240,6 @@ class RunbookParser:
                 elif input_value is not None:
                     # Single value, convert to list
                     requirements['Input'] = [str(input_value)]
-            
-            if 'Output' in parsed_yaml:
-                output_value = parsed_yaml['Output']
-                if isinstance(output_value, list):
-                    requirements['Output'] = [str(item) for item in output_value if item is not None]
-                elif output_value is not None:
-                    # Single value, convert to list
-                    requirements['Output'] = [str(output_value)]
             
             return requirements
             

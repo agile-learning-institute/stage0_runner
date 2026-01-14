@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install build dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git zsh && \
+    apt-get install -y --no-install-recommends git zsh curl && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir pipenv
 
@@ -29,9 +29,9 @@ LABEL org.opencontainers.image.source="https://github.com/agile-learning-institu
 
 WORKDIR /opt/stage0/runner
 
-# Install runtime dependencies including git and zsh (needed for runbook scripts)
+# Install runtime dependencies including git, zsh, and curl (needed for runbook scripts)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git zsh && \
+    apt-get install -y --no-install-recommends git zsh curl && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --no-cache-dir pipenv
 

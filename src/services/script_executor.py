@@ -78,7 +78,12 @@ class ScriptExecutor:
             'RUNBOOK_API_TOKEN',
             'RUNBOOK_CORRELATION_ID',
             'RUNBOOK_URL',
-            'RUNBOOK_RECURSION_STACK'
+            'RUNBOOK_RECURSION_STACK',
+            'RUNBOOK_HEADER_AUTH',
+            'RUNBOOK_HEADER_CORRELATION',
+            'RUNBOOK_HEADER_RECURSION',
+            'RUNBOOK_HEADER_CONTENT_TYPE',
+            'RUNBOOK_HEADERS'
         }
         
         # Validate and sanitize environment variables
@@ -145,11 +150,54 @@ class ScriptExecutor:
         logger.debug(f"Set system environment variable: RUNBOOK_URL = {runbook_url}")
         
         # Set recursion stack as JSON string
+        recursion_stack_json = None
         if recursion_stack is not None:
             recursion_stack_json = json.dumps(recursion_stack)
             original_env['RUNBOOK_RECURSION_STACK'] = os.environ.get('RUNBOOK_RECURSION_STACK')
             os.environ['RUNBOOK_RECURSION_STACK'] = recursion_stack_json
             logger.debug(f"Set system environment variable: RUNBOOK_RECURSION_STACK = {recursion_stack_json}")
+        
+        # Set pre-formatted header variables for easy use in curl commands
+        if token_string:
+            header_auth = f"Authorization: Bearer {token_string}"
+            original_env['RUNBOOK_HEADER_AUTH'] = os.environ.get('RUNBOOK_HEADER_AUTH')
+            os.environ['RUNBOOK_HEADER_AUTH'] = header_auth
+            logger.debug("Set system environment variable: RUNBOOK_HEADER_AUTH (value masked)")
+        
+        if correlation_id:
+            header_correlation = f"X-Correlation-Id: {correlation_id}"
+            original_env['RUNBOOK_HEADER_CORRELATION'] = os.environ.get('RUNBOOK_HEADER_CORRELATION')
+            os.environ['RUNBOOK_HEADER_CORRELATION'] = header_correlation
+            logger.debug(f"Set system environment variable: RUNBOOK_HEADER_CORRELATION = {header_correlation}")
+        
+        if recursion_stack_json:
+            header_recursion = f"X-Recursion-Stack: {recursion_stack_json}"
+            original_env['RUNBOOK_HEADER_RECURSION'] = os.environ.get('RUNBOOK_HEADER_RECURSION')
+            os.environ['RUNBOOK_HEADER_RECURSION'] = header_recursion
+            logger.debug(f"Set system environment variable: RUNBOOK_HEADER_RECURSION = {header_recursion}")
+        
+        # Always set Content-Type header
+        header_content_type = "Content-Type: application/json"
+        original_env['RUNBOOK_HEADER_CONTENT_TYPE'] = os.environ.get('RUNBOOK_HEADER_CONTENT_TYPE')
+        os.environ['RUNBOOK_HEADER_CONTENT_TYPE'] = header_content_type
+        logger.debug(f"Set system environment variable: RUNBOOK_HEADER_CONTENT_TYPE = {header_content_type}")
+        
+        # Set combined headers variable for convenience (space-separated -H flags)
+        # This can be used with eval: eval "curl ... $RUNBOOK_HEADERS ..."
+        # Or individual headers can be used: -H "$RUNBOOK_HEADER_AUTH" -H "$RUNBOOK_HEADER_CORRELATION" etc.
+        headers_list = []
+        if token_string:
+            headers_list.append(f'-H "{header_auth}"')
+        if correlation_id:
+            headers_list.append(f'-H "{header_correlation}"')
+        if recursion_stack_json:
+            headers_list.append(f'-H "{header_recursion}"')
+        headers_list.append(f'-H "{header_content_type}"')
+        
+        runbook_headers = ' '.join(headers_list)
+        original_env['RUNBOOK_HEADERS'] = os.environ.get('RUNBOOK_HEADERS')
+        os.environ['RUNBOOK_HEADERS'] = runbook_headers
+        logger.debug("Set system environment variable: RUNBOOK_HEADERS (value masked)")
         
         try:
             # Create isolated temporary directory for this execution (prevents path traversal)

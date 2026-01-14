@@ -156,6 +156,14 @@ When a runbook script executes, the following system-managed environment variabl
   - System-managed, cannot be overridden by user env_vars
   - **Note**: The stack passed to scripts already includes the current runbook's filename
 
+- **Pre-formatted Header Variables** - Ready-to-use header strings for curl commands:
+  - **`RUNBOOK_HEADER_AUTH`** - Pre-formatted: `"Authorization: Bearer $RUNBOOK_API_TOKEN"`
+  - **`RUNBOOK_HEADER_CORRELATION`** - Pre-formatted: `"X-Correlation-Id: $RUNBOOK_CORRELATION_ID"`
+  - **`RUNBOOK_HEADER_RECURSION`** - Pre-formatted: `"X-Recursion-Stack: $RUNBOOK_RECURSION_STACK"`
+  - **`RUNBOOK_HEADER_CONTENT_TYPE`** - Pre-formatted: `"Content-Type: application/json"`
+  - All system-managed, cannot be overridden by user env_vars
+  - Use directly: `-H "$RUNBOOK_HEADER_AUTH" -H "$RUNBOOK_HEADER_CORRELATION"` etc.
+
 ### Calling a Sub-Runbook
 
 To call a sub-runbook from your script, make an HTTP POST request to the API:
@@ -163,15 +171,14 @@ To call a sub-runbook from your script, make an HTTP POST request to the API:
 ```sh
 #! /bin/zsh
 echo "Parent runbook starting"
-echo "Correlation ID: $RUNBOOK_CORRELATION_ID"
-echo "Recursion stack: $RUNBOOK_RECURSION_STACK"
 
-# Call child runbook via API
+# Call child runbook via API using pre-formatted header variables
+# This makes it easy to do right and hard to do wrong
 RESPONSE=$(curl -s -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
-  -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
-  -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
-  -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
-  -H "Content-Type: application/json" \
+  -H "$RUNBOOK_HEADER_AUTH" \
+  -H "$RUNBOOK_HEADER_CORRELATION" \
+  -H "$RUNBOOK_HEADER_RECURSION" \
+  -H "$RUNBOOK_HEADER_CONTENT_TYPE" \
   -d '{"env_vars":{"CHILD_VAR":"value"}}')
 
 echo "Child runbook response: $RESPONSE"
@@ -179,11 +186,26 @@ echo "Parent runbook completed"
 ```
 
 **Important Notes:**
+- **Use pre-formatted header variables** (`RUNBOOK_HEADER_*`) for easy, correct API calls
 - Always pass `X-Recursion-Stack` header to maintain recursion protection
 - The recursion stack passed to scripts already includes the current runbook
 - Pass the stack as-is (no manipulation needed)
 - Always pass `X-Correlation-Id` for request tracing
 - Use `RUNBOOK_URL` for the API endpoint (already includes `/api/runbooks` path)
+
+**Alternative: Manual Header Construction**
+
+If you need to construct headers manually, you can still use the individual values:
+```sh
+curl -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
+  -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
+  -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
+  -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
+  -H "Content-Type: application/json" \
+  -d '{"env_vars":{}}'
+```
+
+However, using the pre-formatted header variables is recommended as it reduces errors and makes the code cleaner.
 
 ### Recursion Protection
 

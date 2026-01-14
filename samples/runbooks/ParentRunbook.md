@@ -27,13 +27,13 @@ echo "Runbook URL: $RUNBOOK_URL"
 
 # Call child runbook via API
 # The recursion stack already includes this runbook's filename
-# Just pass it as-is in the X-Recursion-Stack header
+# Use pre-formatted header variables for easy, correct API calls
 echo "Calling SimpleRunbook.md as sub-runbook..."
 RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$RUNBOOK_URL/SimpleRunbook.md/execute" \
-  -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
-  -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
-  -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
-  -H "Content-Type: application/json" \
+  -H "$RUNBOOK_HEADER_AUTH" \
+  -H "$RUNBOOK_HEADER_CORRELATION" \
+  -H "$RUNBOOK_HEADER_RECURSION" \
+  -H "$RUNBOOK_HEADER_CONTENT_TYPE" \
   -d "{\"env_vars\":{\"TEST_VAR\":\"${TEST_VAR:-parent_value}\"}}")
 
 # Extract HTTP status code and response body

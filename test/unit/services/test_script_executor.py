@@ -178,13 +178,14 @@ def test_execute_script_system_env_vars_set():
     config = Config.get_instance()
     
     # Use separate echo commands to avoid splitting issues with JSON
-    script = "echo TOKEN:$RUNBOOK_API_TOKEN; echo CORRELATION:$RUNBOOK_CORRELATION_ID; echo URL:$RUNBOOK_URL; echo STACK:$RUNBOOK_RECURSION_STACK"
+    script = "echo TOKEN:$RUNBOOK_API_TOKEN; echo CORRELATION:$RUNBOOK_CORRELATION_ID; echo URL:$RUNBOOK_URL; echo STACK:$RUNBOOK_RECURSION_STACK; echo HEADER_AUTH:$RUNBOOK_HEADER_AUTH; echo HEADER_CORRELATION:$RUNBOOK_HEADER_CORRELATION; echo HEADER_RECURSION:$RUNBOOK_HEADER_RECURSION; echo HEADER_CONTENT_TYPE:$RUNBOOK_HEADER_CONTENT_TYPE"
     token_string = "test-token-123"
     correlation_id = "test-correlation-456"
     recursion_stack = ["ParentRunbook.md", "ChildRunbook.md"]
     
     # Clean up any existing env vars
-    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
+    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK', 
+                'RUNBOOK_HEADER_AUTH', 'RUNBOOK_HEADER_CORRELATION', 'RUNBOOK_HEADER_RECURSION', 'RUNBOOK_HEADER_CONTENT_TYPE']:
         os.environ.pop(key, None)
     
     try:
@@ -210,9 +211,15 @@ def test_execute_script_system_env_vars_set():
         # Verify recursion stack was JSON encoded
         stack_json = json.dumps(recursion_stack)
         assert f"STACK:{stack_json}" in output, f"Recursion stack should be in output, got: {output}"
+        # Verify pre-formatted headers were set
+        assert f"HEADER_AUTH:Authorization: Bearer {token_string}" in output, f"Auth header should be in output, got: {output}"
+        assert f"HEADER_CORRELATION:X-Correlation-Id: {correlation_id}" in output, f"Correlation header should be in output, got: {output}"
+        assert f"HEADER_RECURSION:X-Recursion-Stack: {stack_json}" in output, f"Recursion header should be in output, got: {output}"
+        assert "HEADER_CONTENT_TYPE:Content-Type: application/json" in output, f"Content-Type header should be in output, got: {output}"
     finally:
         # Clean up
-        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
+        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                    'RUNBOOK_HEADER_AUTH', 'RUNBOOK_HEADER_CORRELATION', 'RUNBOOK_HEADER_RECURSION', 'RUNBOOK_HEADER_CONTENT_TYPE']:
             os.environ.pop(key, None)
 
 
@@ -224,11 +231,18 @@ def test_execute_script_user_cannot_override_system_vars():
         'RUNBOOK_API_TOKEN': 'user-token',
         'RUNBOOK_CORRELATION_ID': 'user-correlation',
         'RUNBOOK_URL': 'user-url',
-        'RUNBOOK_RECURSION_STACK': 'user-stack'
+        'RUNBOOK_RECURSION_STACK': 'user-stack',
+        'RUNBOOK_HEADER_AUTH': 'user-header-auth',
+        'RUNBOOK_HEADER_CORRELATION': 'user-header-correlation',
+        'RUNBOOK_HEADER_RECURSION': 'user-header-recursion',
+        'RUNBOOK_HEADER_CONTENT_TYPE': 'user-header-content-type',
+        'RUNBOOK_HEADERS': 'user-headers'
     }
     
     # Clean up any existing env vars
-    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
+    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                'RUNBOOK_HEADER_AUTH', 'RUNBOOK_HEADER_CORRELATION', 'RUNBOOK_HEADER_RECURSION', 
+                'RUNBOOK_HEADER_CONTENT_TYPE', 'RUNBOOK_HEADERS']:
         os.environ.pop(key, None)
     
     try:
@@ -247,7 +261,9 @@ def test_execute_script_user_cannot_override_system_vars():
         assert 'user-token' not in output, "User token should be ignored"
     finally:
         # Clean up
-        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
+        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                    'RUNBOOK_HEADER_AUTH', 'RUNBOOK_HEADER_CORRELATION', 'RUNBOOK_HEADER_RECURSION', 
+                    'RUNBOOK_HEADER_CONTENT_TYPE', 'RUNBOOK_HEADERS']:
             os.environ.pop(key, None)
 
 

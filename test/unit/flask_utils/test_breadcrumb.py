@@ -3,6 +3,7 @@
 Unit tests for breadcrumb utilities.
 """
 import sys
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 from datetime import datetime, timezone
@@ -66,4 +67,94 @@ class TestCreateFlaskBreadcrumb:
             breadcrumb = create_flask_breadcrumb(token)
         
         assert breadcrumb["at_time"].tzinfo == timezone.utc
+    
+    def test_recursion_stack_extracted_from_header(self):
+        """Test that recursion_stack is extracted from X-Recursion-Stack header."""
+        token = {"user_id": "test_user"}
+        recursion_stack = ["ParentRunbook.md", "ChildRunbook.md"]
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {
+            "X-Recursion-Stack": json.dumps(recursion_stack)
+        }
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] == recursion_stack
+    
+    def test_recursion_stack_missing_header_is_none(self):
+        """Test that recursion_stack is None when header is missing."""
+        token = {"user_id": "test_user"}
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {}
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] is None
+    
+    def test_recursion_stack_invalid_json_is_none(self):
+        """Test that recursion_stack is None when header contains invalid JSON."""
+        token = {"user_id": "test_user"}
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {
+            "X-Recursion-Stack": "not valid json"
+        }
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] is None
+    
+    def test_recursion_stack_not_list_is_none(self):
+        """Test that recursion_stack is None when header is not a list."""
+        token = {"user_id": "test_user"}
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {
+            "X-Recursion-Stack": json.dumps({"not": "a list"})
+        }
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] is None
+    
+    def test_recursion_stack_items_not_strings_is_none(self):
+        """Test that recursion_stack is None when items are not strings."""
+        token = {"user_id": "test_user"}
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {
+            "X-Recursion-Stack": json.dumps([1, 2, 3])  # Numbers, not strings
+        }
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] is None
+    
+    def test_recursion_stack_empty_list_is_valid(self):
+        """Test that recursion_stack can be an empty list."""
+        token = {"user_id": "test_user"}
+        recursion_stack = []
+        mock_request = Mock()
+        mock_request.remote_addr = "192.168.1.1"
+        mock_request.headers = {
+            "X-Recursion-Stack": json.dumps(recursion_stack)
+        }
+        
+        with patch('src.flask_utils.breadcrumb.request', mock_request):
+            breadcrumb = create_flask_breadcrumb(token)
+        
+        assert "recursion_stack" in breadcrumb
+        assert breadcrumb["recursion_stack"] == recursion_stack
 

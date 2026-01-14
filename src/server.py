@@ -121,11 +121,16 @@ signal.signal(signal.SIGINT, handle_exit)
 
 # Create default app instance for Gunicorn (uses RUNBOOKS_DIR from config or env)
 # This allows Gunicorn to use: gunicorn src.server:app
-app = create_app()
+# Note: When running as __main__, we create a fresh app to ensure environment variables are respected
+app = None
+if __name__ != "__main__":
+    app = create_app()
 
 # Expose app for direct execution
 if __name__ == "__main__":
     from src.config.config import Config
+    # Create app here to ensure environment variables (like ENABLE_LOGIN) are set
+    app = create_app()
     config = Config.get_instance()
     
     api_port = config.API_PORT

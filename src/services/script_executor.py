@@ -79,10 +79,10 @@ class ScriptExecutor:
             'RUNBOOK_CORRELATION_ID',
             'RUNBOOK_URL',
             'RUNBOOK_RECURSION_STACK',
-            'RUNBOOK_HEADER_AUTH',
-            'RUNBOOK_HEADER_CORRELATION',
-            'RUNBOOK_HEADER_RECURSION',
-            'RUNBOOK_HEADER_CONTENT_TYPE',
+            'RUNBOOK_H_AUTH',
+            'RUNBOOK_H_CORR',
+            'RUNBOOK_H_RECUR',
+            'RUNBOOK_H_CTYPE',
             'RUNBOOK_HEADERS'
         }
         
@@ -157,30 +157,30 @@ class ScriptExecutor:
             os.environ['RUNBOOK_RECURSION_STACK'] = recursion_stack_json
             logger.debug(f"Set system environment variable: RUNBOOK_RECURSION_STACK = {recursion_stack_json}")
         
-        # Set pre-formatted header variables for easy use in curl commands
+        # Set pre-formatted header variables for easy use in curl commands (short names for convenience)
         if token_string:
             header_auth = f"Authorization: Bearer {token_string}"
-            original_env['RUNBOOK_HEADER_AUTH'] = os.environ.get('RUNBOOK_HEADER_AUTH')
-            os.environ['RUNBOOK_HEADER_AUTH'] = header_auth
-            logger.debug("Set system environment variable: RUNBOOK_HEADER_AUTH (value masked)")
+            original_env['RUNBOOK_H_AUTH'] = os.environ.get('RUNBOOK_H_AUTH')
+            os.environ['RUNBOOK_H_AUTH'] = header_auth
+            logger.debug("Set system environment variable: RUNBOOK_H_AUTH (value masked)")
         
         if correlation_id:
             header_correlation = f"X-Correlation-Id: {correlation_id}"
-            original_env['RUNBOOK_HEADER_CORRELATION'] = os.environ.get('RUNBOOK_HEADER_CORRELATION')
-            os.environ['RUNBOOK_HEADER_CORRELATION'] = header_correlation
-            logger.debug(f"Set system environment variable: RUNBOOK_HEADER_CORRELATION = {header_correlation}")
+            original_env['RUNBOOK_H_CORR'] = os.environ.get('RUNBOOK_H_CORR')
+            os.environ['RUNBOOK_H_CORR'] = header_correlation
+            logger.debug(f"Set system environment variable: RUNBOOK_H_CORR = {header_correlation}")
         
         if recursion_stack_json:
             header_recursion = f"X-Recursion-Stack: {recursion_stack_json}"
-            original_env['RUNBOOK_HEADER_RECURSION'] = os.environ.get('RUNBOOK_HEADER_RECURSION')
-            os.environ['RUNBOOK_HEADER_RECURSION'] = header_recursion
-            logger.debug(f"Set system environment variable: RUNBOOK_HEADER_RECURSION = {header_recursion}")
+            original_env['RUNBOOK_H_RECUR'] = os.environ.get('RUNBOOK_H_RECUR')
+            os.environ['RUNBOOK_H_RECUR'] = header_recursion
+            logger.debug(f"Set system environment variable: RUNBOOK_H_RECUR = {header_recursion}")
         
         # Always set Content-Type header
         header_content_type = "Content-Type: application/json"
-        original_env['RUNBOOK_HEADER_CONTENT_TYPE'] = os.environ.get('RUNBOOK_HEADER_CONTENT_TYPE')
-        os.environ['RUNBOOK_HEADER_CONTENT_TYPE'] = header_content_type
-        logger.debug(f"Set system environment variable: RUNBOOK_HEADER_CONTENT_TYPE = {header_content_type}")
+        original_env['RUNBOOK_H_CTYPE'] = os.environ.get('RUNBOOK_H_CTYPE')
+        os.environ['RUNBOOK_H_CTYPE'] = header_content_type
+        logger.debug(f"Set system environment variable: RUNBOOK_H_CTYPE = {header_content_type}")
         
         # Set combined headers variable for convenience (space-separated -H flags)
         # This can be used with eval: eval "curl ... $RUNBOOK_HEADERS ..."

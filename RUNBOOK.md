@@ -156,13 +156,13 @@ When a runbook script executes, the following system-managed environment variabl
   - System-managed, cannot be overridden by user env_vars
   - **Note**: The stack passed to scripts already includes the current runbook's filename
 
-- **Pre-formatted Header Variables** - Ready-to-use header strings for curl commands:
-  - **`RUNBOOK_HEADER_AUTH`** - Pre-formatted: `"Authorization: Bearer $RUNBOOK_API_TOKEN"`
-  - **`RUNBOOK_HEADER_CORRELATION`** - Pre-formatted: `"X-Correlation-Id: $RUNBOOK_CORRELATION_ID"`
-  - **`RUNBOOK_HEADER_RECURSION`** - Pre-formatted: `"X-Recursion-Stack: $RUNBOOK_RECURSION_STACK"`
-  - **`RUNBOOK_HEADER_CONTENT_TYPE`** - Pre-formatted: `"Content-Type: application/json"`
+- **Pre-formatted Header Variables** - Ready-to-use header strings for curl commands (short names for convenience):
+  - **`RUNBOOK_H_AUTH`** - Pre-formatted: `"Authorization: Bearer $RUNBOOK_API_TOKEN"`
+  - **`RUNBOOK_H_CORR`** - Pre-formatted: `"X-Correlation-Id: $RUNBOOK_CORRELATION_ID"`
+  - **`RUNBOOK_H_RECUR`** - Pre-formatted: `"X-Recursion-Stack: $RUNBOOK_RECURSION_STACK"`
+  - **`RUNBOOK_H_CTYPE`** - Pre-formatted: `"Content-Type: application/json"`
   - All system-managed, cannot be overridden by user env_vars
-  - Use directly: `-H "$RUNBOOK_HEADER_AUTH" -H "$RUNBOOK_HEADER_CORRELATION"` etc.
+  - Use directly: `-H "$RUNBOOK_H_AUTH" -H "$RUNBOOK_H_CORR" -H "$RUNBOOK_H_RECUR" -H "$RUNBOOK_H_CTYPE"`
 
 ### Calling a Sub-Runbook
 
@@ -174,11 +174,9 @@ echo "Parent runbook starting"
 
 # Call child runbook via API using pre-formatted header variables
 # This makes it easy to do right and hard to do wrong
+# All headers on one line for easy copy/paste
 RESPONSE=$(curl -s -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
-  -H "$RUNBOOK_HEADER_AUTH" \
-  -H "$RUNBOOK_HEADER_CORRELATION" \
-  -H "$RUNBOOK_HEADER_RECURSION" \
-  -H "$RUNBOOK_HEADER_CONTENT_TYPE" \
+  -H "$RUNBOOK_H_AUTH" -H "$RUNBOOK_H_CORR" -H "$RUNBOOK_H_RECUR" -H "$RUNBOOK_H_CTYPE" \
   -d '{"env_vars":{"CHILD_VAR":"value"}}')
 
 echo "Child runbook response: $RESPONSE"
@@ -186,7 +184,7 @@ echo "Parent runbook completed"
 ```
 
 **Important Notes:**
-- **Use pre-formatted header variables** (`RUNBOOK_HEADER_*`) for easy, correct API calls
+- **Use pre-formatted header variables** (`RUNBOOK_H_*`) for easy, correct API calls
 - Always pass `X-Recursion-Stack` header to maintain recursion protection
 - The recursion stack passed to scripts already includes the current runbook
 - Pass the stack as-is (no manipulation needed)

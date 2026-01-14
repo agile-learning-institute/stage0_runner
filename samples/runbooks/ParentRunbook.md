@@ -30,10 +30,7 @@ echo "Runbook URL: $RUNBOOK_URL"
 # Use pre-formatted header variables for easy, correct API calls
 echo "Calling SimpleRunbook.md as sub-runbook..."
 RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$RUNBOOK_URL/SimpleRunbook.md/execute" \
-  -H "$RUNBOOK_HEADER_AUTH" \
-  -H "$RUNBOOK_HEADER_CORRELATION" \
-  -H "$RUNBOOK_HEADER_RECURSION" \
-  -H "$RUNBOOK_HEADER_CONTENT_TYPE" \
+  -H "$RUNBOOK_H_AUTH" -H "$RUNBOOK_H_CORR" -H "$RUNBOOK_H_RECUR" -H "$RUNBOOK_H_CTYPE" \
   -d "{\"env_vars\":{\"TEST_VAR\":\"${TEST_VAR:-parent_value}\"}}")
 
 # Extract HTTP status code and response body

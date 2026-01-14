@@ -201,3 +201,4 @@ For comprehensive production deployment documentation, including deployment opti
     ├── integration/               # Integration testing
     ├── unit/                      # Unit testing
 ```
+Need help - **Join us on Discord**: [Runbooks Support Channel](https://discord.gg/Pcs8yTXPuh)

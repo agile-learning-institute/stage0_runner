@@ -9,7 +9,7 @@ GITHUB_TOKEN: A github classic token with package:write Privileges
 # File System Requirements
 ```yaml
 Input:
-- ./CreatePackage.dockerfile
+- ./CreatePackage
 ```
 
 # Required Claims
@@ -21,10 +21,16 @@ This runbook requires elevated permissions to push to GitHub Container Registry.
 # Script
 ```sh
 #! /bin/zsh
-echo $GITHUB_TOKEN | docker login ghcr.io -u agile-crafts-people --password-stdin && \
-docker build -f DeveloperEdition/sre_resources/Dockerfile.ghcr-package --build-arg REPO=$(REPO) -t ghcr.io/agile-crafts-people/$(REPO):latest .
-docker push ghcr.io/agile-crafts-people/$(REPO):latest
-echo Create Package Completed
+# Demo: Display input folder contents
+echo "=== Input Folder Contents ==="
+cat CreatePackage/input.txt
+echo ""
+echo "=== Docker Commands (demonstration - not executed) ==="
+echo "Would run: echo \$GITHUB_TOKEN | docker login ghcr.io -u agile-crafts-people --password-stdin"
+echo "Would run: docker build -f DeveloperEdition/sre_resources/Dockerfile.ghcr-package --build-arg REPO=\$(REPO) -t ghcr.io/agile-crafts-people/\$(REPO):latest ."
+echo "Would run: docker push ghcr.io/agile-crafts-people/\$(REPO):latest"
+echo ""
+echo "Create Package Completed (demo mode)"
 ```
 
 # History

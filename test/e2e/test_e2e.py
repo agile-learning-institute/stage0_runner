@@ -63,13 +63,13 @@ def check_server_running(api_base_url):
 
 @pytest.fixture
 def dev_token(api_base_url, check_server_running):
-    """Get a dev token with developer and admin roles."""
+    """Get a dev token with sre, api, data, and ux roles to match sample runbooks."""
     # Try dev-login endpoint (may be at root or /dev-login)
     for endpoint in ['/dev-login', '/api/dev-login']:
         try:
             response = requests.post(
                 f'{api_base_url}{endpoint}',
-                json={'subject': 'e2e-test-user', 'roles': ['developer', 'admin']},
+                json={'subject': 'e2e-test-user', 'roles': ['sre', 'api', 'data', 'ux']},
                 headers={'Content-Type': 'application/json'},
                 timeout=2
             )
@@ -284,7 +284,7 @@ def test_e2e_authentication_flow(api_base_url, check_server_running):
         try:
             response = requests.post(
                 f'{api_base_url}{endpoint}',
-                json={'subject': 'auth-test-user', 'roles': ['developer']},
+                json={'subject': 'auth-test-user', 'roles': ['sre', 'api']},
                 headers={'Content-Type': 'application/json'},
                 timeout=2
             )
@@ -325,9 +325,9 @@ def test_e2e_authentication_flow(api_base_url, check_server_running):
 
 
 def test_e2e_rbac_authorization_flow(api_base_url, check_server_running, dev_token, viewer_token):
-    """Test RBAC authorization flow: viewer cannot execute runbook requiring admin."""
-    # SimpleRunbook requires 'developer' or 'admin' role
-    # viewer_token only has 'viewer' role
+    """Test RBAC authorization flow: viewer cannot execute runbook requiring specific roles."""
+    # SimpleRunbook requires 'sre' and 'api' roles
+    # viewer_token only has 'viewer' role (not in runbook requirements)
     
     # Step 1: Viewer can list runbooks (no RBAC required)
     response = requests.get(

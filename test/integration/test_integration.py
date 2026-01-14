@@ -63,10 +63,10 @@ def client(flask_app):
 
 @pytest.fixture
 def dev_token(client):
-    """Get a dev token for testing."""
+    """Get a dev token for testing with sre and api roles to match sample runbooks."""
     response = client.post(
         '/dev-login',
-        json={'subject': 'test-user', 'roles': ['developer', 'admin']},
+        json={'subject': 'test-user', 'roles': ['sre', 'api']},
         content_type='application/json'
     )
     assert response.status_code == 200

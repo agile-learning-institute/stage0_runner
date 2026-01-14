@@ -85,14 +85,6 @@ class RunbookValidator:
                 full_path = (runbook_path.parent / file_path).resolve()
                 if not full_path.exists():
                     errors.append(f"Required input file does not exist: {file_path}")
-            
-            # Check output directories exist or can be created
-            for dir_path in requirements.get('Output', []):
-                path = Path(dir_path)
-                if not path.exists():
-                    # Check if parent exists and we can create it
-                    if not path.parent.exists():
-                        errors.append(f"Output directory parent does not exist: {dir_path}")
         else:
             errors.append("File System Requirements section must contain a YAML code block")
         

@@ -158,7 +158,6 @@ echo "This should not appear"
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -221,7 +220,6 @@ done
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -514,7 +512,6 @@ def test_execute_runbook_rbac_failure():
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Required Claims
 ```yaml
@@ -701,18 +698,12 @@ def test_extract_file_requirements_with_pyyaml():
 Input:
   - /path/to/input1.txt
   - /path/to/input2.txt
-Output:
-  - /path/to/output1.txt
-  - /path/to/output2.txt
 ```"""
     
     result = RunbookParser.extract_file_requirements(yaml_content)
     assert 'Input' in result, "Should have Input key"
-    assert 'Output' in result, "Should have Output key"
     assert len(result['Input']) == 2, "Should extract 2 input files"
-    assert len(result['Output']) == 2, "Should extract 2 output files"
     assert '/path/to/input1.txt' in result['Input'], "Should find input1"
-    assert '/path/to/output1.txt' in result['Output'], "Should find output1"
 
 
 def test_extract_file_requirements_single_values():
@@ -722,12 +713,10 @@ def test_extract_file_requirements_single_values():
     
     yaml_content = """```yaml
 Input: /path/to/single_input.txt
-Output: /path/to/single_output.txt
 ```"""
     
     result = RunbookParser.extract_file_requirements(yaml_content)
     assert isinstance(result['Input'], list), "Input should be a list"
-    assert isinstance(result['Output'], list), "Output should be a list"
     assert len(result['Input']) == 1, "Should have one input file"
     assert result['Input'][0] == '/path/to/single_input.txt', "Should extract single input"
 
@@ -747,7 +736,6 @@ Input:
     result = RunbookParser.extract_file_requirements(yaml_content)
     # Should return default empty requirements on error
     assert 'Input' in result, "Should have Input key"
-    assert 'Output' in result, "Should have Output key"
     # May or may not parse partially, but should not crash
 
 
@@ -816,7 +804,6 @@ def test_execute_script_empty_script():
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -885,7 +872,6 @@ def test_temp_directory_cleanup_on_error():
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -1065,7 +1051,6 @@ TEST_VAR: Test variable
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -1112,7 +1097,6 @@ TEST_VAR: Test variable
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh
@@ -1522,7 +1506,7 @@ def test_execute_runbook_recursion_stack_building():
     captured_recursion_stack = []
     original_execute = ScriptExecutor.execute_script
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_recursion_stack.append(recursion_stack)
         return 0, "success", ""
     
@@ -1555,7 +1539,7 @@ def test_execute_runbook_top_level_execution():
     # Mock ScriptExecutor to capture the recursion_stack passed to it
     captured_recursion_stack = []
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_recursion_stack.append(recursion_stack)
         return 0, "success", ""
     
@@ -1585,7 +1569,7 @@ def test_execute_runbook_passes_token_and_correlation():
     # Mock ScriptExecutor to capture parameters
     captured_params = {}
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_params['token_string'] = token_string
         captured_params['correlation_id'] = correlation_id
         captured_params['recursion_stack'] = recursion_stack

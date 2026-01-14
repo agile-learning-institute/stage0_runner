@@ -43,7 +43,9 @@ class ScriptExecutor:
         env_vars: Optional[Dict[str, str]] = None,
         token_string: Optional[str] = None,
         correlation_id: Optional[str] = None,
-        recursion_stack: Optional[List[str]] = None
+        recursion_stack: Optional[List[str]] = None,
+        input_paths: Optional[List[str]] = None,
+        runbook_dir: Optional[Path] = None
     ) -> Tuple[int, str, str]:
         """
         Execute a script with resource limits (timeout, output size).
@@ -54,6 +56,8 @@ class ScriptExecutor:
             token_string: Optional JWT token string for API authentication
             correlation_id: Optional correlation ID for request tracking
             recursion_stack: Optional list of runbook filenames in execution chain
+            input_paths: Optional list of input file/folder paths (relative to runbook_dir)
+            runbook_dir: Optional path to runbook directory (for resolving input_paths)
             
         Returns:
             tuple: (return_code, stdout, stderr)
@@ -205,12 +209,23 @@ class ScriptExecutor:
             start_time = time.time()
             try:
                 # Create a dedicated temp directory for this execution
+                # Thread-safe: tempfile.mkdtemp() uses OS-level atomic operations
+                # UUID ensures unique directory names even with concurrent executions
                 temp_exec_dir = Path(tempfile.mkdtemp(prefix=f'runbook-exec-{uuid.uuid4().hex[:8]}-'))
                 temp_script = temp_exec_dir / 'temp.zsh'
                 
                 # Validate that the temp directory is actually a directory (security check)
                 if not temp_exec_dir.exists() or not temp_exec_dir.is_dir():
                     raise HTTPInternalServerError(f"Failed to create temporary execution directory")
+                
+                # Copy input files/folders to temp execution directory
+                if input_paths and runbook_dir:
+                    copy_errors = ScriptExecutor._copy_input_files(input_paths, runbook_dir, temp_exec_dir)
+                    if copy_errors:
+                        # Fail-fast: return error if input files cannot be copied
+                        error_msg = "Failed to copy input files:\n" + "\n".join(copy_errors)
+                        logger.error(error_msg)
+                        return 1, "", error_msg
                 
                 # Create and write the script file
                 with open(temp_script, 'w', encoding='utf-8') as f:
@@ -229,7 +244,7 @@ class ScriptExecutor:
                         ['/bin/zsh', str(temp_script)],
                         capture_output=True,
                         text=True,
-                        cwd=str(temp_exec_dir),  # Execute in isolated temp directory
+                        cwd=str(temp_exec_dir),  # Execute in isolated temp directory (prevents access to /, ../, etc.)
                         timeout=timeout_seconds
                     )
                     
@@ -293,6 +308,8 @@ class ScriptExecutor:
                 return 1, "", error_msg
             finally:
                 # Clean up temporary execution directory and all contents
+                # shutil.rmtree() recursively removes directory tree (including all sub-directories and files)
+                # Cleanup happens even if execution fails (finally block ensures execution)
                 if temp_exec_dir and temp_exec_dir.exists():
                     try:
                         shutil.rmtree(temp_exec_dir)
@@ -315,6 +332,77 @@ class ScriptExecutor:
                         display_value = original_value[:50] if len(str(original_value)) > 50 else original_value
                         logger.debug(f"Restored environment: {key} = {display_value}")
                     os.environ[key] = original_value
+    
+    @staticmethod
+    def _copy_input_files(
+        input_paths: List[str],
+        runbook_dir: Path,
+        temp_exec_dir: Path
+    ) -> List[str]:
+        """
+        Copy input files/folders to temporary execution directory.
+        
+        Args:
+            input_paths: List of input file/folder paths (relative to runbook directory)
+            runbook_dir: Path to the directory containing the runbook
+            temp_exec_dir: Temporary execution directory where files should be copied
+            
+        Returns:
+            List of error messages (empty if successful)
+        """
+        errors = []
+        runbook_dir_resolved = runbook_dir.resolve()
+        
+        if not input_paths:
+            return errors
+        
+        for input_path_str in input_paths:
+            try:
+                # Resolve path relative to runbook directory
+                source_path = (runbook_dir / input_path_str).resolve()
+                
+                # Security: Validate that resolved path is within runbook_dir
+                # This prevents directory traversal attacks (e.g., ../../../etc/passwd)
+                try:
+                    if not source_path.is_relative_to(runbook_dir_resolved):
+                        errors.append(f"Input path escapes runbook directory: {input_path_str}")
+                        logger.warning(f"Rejected input path that escapes runbook directory: {input_path_str}")
+                        continue
+                except AttributeError:
+                    # Python < 3.9: use alternative check
+                    try:
+                        source_path.relative_to(runbook_dir_resolved)
+                    except ValueError:
+                        errors.append(f"Input path escapes runbook directory: {input_path_str}")
+                        logger.warning(f"Rejected input path that escapes runbook directory: {input_path_str}")
+                        continue
+                
+                # Verify source exists
+                if not source_path.exists():
+                    errors.append(f"Input file/folder does not exist: {input_path_str}")
+                    logger.warning(f"Input file/folder does not exist: {input_path_str}")
+                    continue
+                
+                # Determine destination path (flatten to temp_exec_dir root)
+                dest_path = temp_exec_dir / source_path.name
+                
+                # Copy file or directory
+                if source_path.is_file():
+                    shutil.copy2(source_path, dest_path)
+                    logger.debug(f"Copied input file: {input_path_str} -> {dest_path}")
+                elif source_path.is_dir():
+                    shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
+                    logger.debug(f"Copied input directory: {input_path_str} -> {dest_path}")
+                else:
+                    errors.append(f"Input path is neither file nor directory: {input_path_str}")
+                    logger.warning(f"Input path is neither file nor directory: {input_path_str}")
+                    
+            except Exception as e:
+                error_msg = f"Failed to copy input {input_path_str}: {e}"
+                errors.append(error_msg)
+                logger.error(error_msg, exc_info=True)
+        
+        return errors
     
     @staticmethod
     def _truncate_output(output: str, max_bytes: int) -> Tuple[str, bool]:

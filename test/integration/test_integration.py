@@ -323,7 +323,6 @@ def test_rbac_enforcement_on_execute(client, viewer_token):
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Required Claims
 ```yaml
@@ -369,7 +368,6 @@ def test_rbac_enforcement_on_validate(client, viewer_token):
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Required Claims
 ```yaml
@@ -508,7 +506,6 @@ def test_error_response_format_403(client, viewer_token):
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Required Claims
 ```yaml
@@ -567,7 +564,6 @@ def test_error_response_format_500(client, dev_token):
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 # Script
 ```sh

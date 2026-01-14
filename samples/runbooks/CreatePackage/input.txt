@@ -1,0 +1,3 @@
+This is a sample input file for the CreatePackage runbook.
+It demonstrates how input folders work with the runbook system.
+The script will read this file and output it to demonstrate input file access.

@@ -9,7 +9,6 @@ TEST_VAR: A test environment variable for demonstration purposes
 # File System Requirements
 ```yaml
 Input:
-Output:
 ```
 
 # Required Claims

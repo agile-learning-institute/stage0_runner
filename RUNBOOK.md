@@ -13,13 +13,11 @@ GITHUB_TOKEN: A github classic token with xyz permissions
 ```
 
 # File System Requirements
-This section must contain information about what files and folders should be in place for the script to run. The file naming convention RunbookName.someType if there is only one or two files. If there are many files, you can create a folder with the RunbookName and store the files there. If the script creates output files, you can specify output folders that should available.
+This section must contain information about what files and folders should be in place for the script to run. The file naming convention RunbookName.someType if there is only one or two files. If there are many files, you can create a folder with the RunbookName and store the files there.
 ```yaml
 Input:
 - ./Runbook.dockerfile
 - ./Runbook/one_of_many_files.csv
-Output:
-- /some/output/folder
 ```
 
 # Required Claims

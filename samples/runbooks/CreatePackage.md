@@ -10,6 +10,7 @@ GITHUB_TOKEN: A github classic token with package:write Privileges
 ```yaml
 Input:
 - ./CreatePackage
+- ./CreatePackage.dockerfile
 ```
 
 # Required Claims
@@ -26,9 +27,7 @@ echo "=== Input Folder Contents ==="
 cat CreatePackage/input.txt
 echo ""
 echo "=== Docker Commands (demonstration - not executed) ==="
-echo "Would run: echo \$GITHUB_TOKEN | docker login ghcr.io -u agile-crafts-people --password-stdin"
-echo "Would run: docker build -f DeveloperEdition/sre_resources/Dockerfile.ghcr-package --build-arg REPO=\$(REPO) -t ghcr.io/agile-crafts-people/\$(REPO):latest ."
-echo "Would run: docker push ghcr.io/agile-crafts-people/\$(REPO):latest"
+echo "docker build -f ./CreatePackage.dockerfile"
 echo ""
 echo "Create Package Completed (demo mode)"
 ```

@@ -143,9 +143,10 @@ When a runbook script executes, the following system-managed environment variabl
   - Enables tracing request chains across nested runbook executions
   - System-managed, cannot be overridden by user env_vars
 
-- **`RUNBOOK_API_BASE_URL`** - The base URL for the API (e.g., `http://localhost:8083`)
+- **`RUNBOOK_URL`** - The API URL with `/api/runbooks` path included (e.g., `http://localhost:8083/api/runbooks`)
   - Constructed from `API_PROTOCOL`, `API_HOST`, and `API_PORT` configuration
-  - Default: `http://localhost:8083` (scripts run in same container)
+  - Default: `http://localhost:8083/api/runbooks` (scripts run in same container)
+  - Use directly in API calls: `"$RUNBOOK_URL/SimpleRunbook.md/execute"`
   - System-managed, cannot be overridden by user env_vars
 
 - **`RUNBOOK_RECURSION_STACK`** - JSON array of runbook filenames in the execution chain
@@ -166,7 +167,7 @@ echo "Correlation ID: $RUNBOOK_CORRELATION_ID"
 echo "Recursion stack: $RUNBOOK_RECURSION_STACK"
 
 # Call child runbook via API
-RESPONSE=$(curl -s -X POST "$RUNBOOK_API_BASE_URL/api/runbooks/ChildRunbook.md/execute" \
+RESPONSE=$(curl -s -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
   -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
   -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
   -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
@@ -182,7 +183,7 @@ echo "Parent runbook completed"
 - The recursion stack passed to scripts already includes the current runbook
 - Pass the stack as-is (no manipulation needed)
 - Always pass `X-Correlation-Id` for request tracing
-- Use `RUNBOOK_API_BASE_URL` for the API endpoint
+- Use `RUNBOOK_URL` for the API endpoint (already includes `/api/runbooks` path)
 
 ### Recursion Protection
 

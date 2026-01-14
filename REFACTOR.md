@@ -39,10 +39,10 @@ Scripts will receive the following environment variables automatically:
    - Used for request tracing across nested executions
    - Should be passed in `X-Correlation-Id: $RUNBOOK_CORRELATION_ID` header
 
-3. **`RUNBOOK_API_BASE_URL`** - The base URL for the API (e.g., `http://localhost:8083`)
+3. **`RUNBOOK_URL`** - The API URL with `/api/runbooks` path included (e.g., `http://localhost:8083/api/runbooks`)
    - Constructed from `API_PROTOCOL` (default: `http`), `API_HOST` (default: `localhost`), and `API_PORT` (default: `8083`) config values
-   - Format: `{API_PROTOCOL}://{API_HOST}:{API_PORT}`
-   - Allows scripts to make API calls
+   - Format: `{API_PROTOCOL}://{API_HOST}:{API_PORT}/api/runbooks`
+   - Allows scripts to make API calls directly: `"$RUNBOOK_URL/SimpleRunbook.md/execute"`
    - Scripts run in the same container, so `localhost` is appropriate for most cases
 
 4. **`RUNBOOK_RECURSION_STACK`** - JSON array of runbook filenames in the execution chain
@@ -91,7 +91,7 @@ Scripts will receive the following environment variables automatically:
 - Add `API_HOST` configuration (default: `localhost`) - scripts run in same container, so localhost is appropriate
 - Use existing `API_PORT` configuration (default: `8083`)
 - Add `MAX_RECURSION_DEPTH` configuration (default: 50, high value to allow legitimate nesting)
-- Construct `RUNBOOK_API_BASE_URL` as `{API_PROTOCOL}://{API_HOST}:{API_PORT}` in ScriptExecutor
+- Construct `RUNBOOK_URL` as `{API_PROTOCOL}://{API_HOST}:{API_PORT}/api/runbooks` in ScriptExecutor
 - Update `config_items` tracking to include new configs
 
 ### Phase 2: Script Executor Updates
@@ -113,7 +113,7 @@ Scripts will receive the following environment variables automatically:
    - Extract JWT token string from request (need to pass from route)
    - Set `RUNBOOK_API_TOKEN` if token_string provided
    - Set `RUNBOOK_CORRELATION_ID` if correlation_id provided
-   - Construct and set `RUNBOOK_API_BASE_URL` as `{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}`
+   - Construct and set `RUNBOOK_URL` as `{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}/api/runbooks`
    - Set `RUNBOOK_RECURSION_STACK` as JSON string from recursion_stack (from breadcrumb)
    - **Note**: The recursion_stack passed here should already include the current runbook's filename
 
@@ -311,7 +311,7 @@ echo "Recursion stack: $RUNBOOK_RECURSION_STACK"
 # Call child runbook via API
 # The recursion stack already includes this runbook's filename
 # Just pass it as-is in the X-Recursion-Stack header
-RESPONSE=$(curl -s -X POST "$RUNBOOK_API_BASE_URL/api/runbooks/ChildRunbook.md/execute" \
+RESPONSE=$(curl -s -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
   -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
   -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
   -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
@@ -333,7 +333,7 @@ If a runbook tries to call itself (or a runbook already in its chain):
 # This will fail with recursion error
 # The recursion stack already contains this runbook's name: ["ParentRunbook.md"]
 # When we try to call ParentRunbook.md again, the API detects it's already in the stack
-curl -X POST "$RUNBOOK_API_BASE_URL/api/runbooks/ParentRunbook.md/execute" \
+curl -X POST "$RUNBOOK_URL/ParentRunbook.md/execute" \
   -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
   -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
   -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
@@ -364,12 +364,12 @@ curl -X POST "$RUNBOOK_API_BASE_URL/api/runbooks/ParentRunbook.md/execute" \
 - [ ] Scripts can pass recursion stack as-is (no manipulation needed)
 - [ ] Recursion detection works (same runbook in chain)
 - [ ] Recursion errors written to stderr (persist in history)
-- [ ] API base URL constructed from API_PROTOCOL, API_HOST, and API_PORT
+- [ ] API URL constructed from API_PROTOCOL, API_HOST, and API_PORT with /api/runbooks path
 - [ ] MAX_RECURSION_DEPTH config added and enforced
 - [ ] Runtime safety: Missing recursion stack header handled gracefully
 - [ ] Correlation ID propagated correctly
 - [ ] Token passed correctly to scripts
-- [ ] API base URL configurable
+- [ ] API URL configurable with /api/runbooks path included
 - [ ] Example runbooks work correctly
 - [ ] Unit tests pass
 - [ ] Integration tests pass

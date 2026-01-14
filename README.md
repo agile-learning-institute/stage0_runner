@@ -173,7 +173,7 @@ For complete details on runbook structure, required sections, history format, an
 
 ### Sub-Runbook Execution
 
-Runbooks can call other runbooks (sub-runbooks) via API calls, enabling composition of complex workflows from simpler, reusable runbooks. Scripts automatically receive system environment variables (`RUNBOOK_API_TOKEN`, `RUNBOOK_CORRELATION_ID`, `RUNBOOK_API_BASE_URL`, `RUNBOOK_RECURSION_STACK`) for making API calls. The system includes automatic recursion detection and depth limiting to prevent infinite loops and circular dependencies. See [RUNBOOK.md](./RUNBOOK.md#sub-runbook-execution) for complete documentation and examples.
+Runbooks can call other runbooks (sub-runbooks) via API calls, enabling composition of complex workflows from simpler, reusable runbooks. Scripts automatically receive system environment variables (`RUNBOOK_API_TOKEN`, `RUNBOOK_CORRELATION_ID`, `RUNBOOK_URL`, `RUNBOOK_RECURSION_STACK`) for making API calls. The `RUNBOOK_URL` variable includes the `/api/runbooks` path for convenient use. The system includes automatic recursion detection and depth limiting to prevent infinite loops and circular dependencies. See [RUNBOOK.md](./RUNBOOK.md#sub-runbook-execution) for complete documentation and examples.
 
 ## Security
 

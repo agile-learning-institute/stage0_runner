@@ -77,7 +77,7 @@ class ScriptExecutor:
         SYSTEM_ENV_VARS = {
             'RUNBOOK_API_TOKEN',
             'RUNBOOK_CORRELATION_ID',
-            'RUNBOOK_API_BASE_URL',
+            'RUNBOOK_URL',
             'RUNBOOK_RECURSION_STACK'
         }
         
@@ -138,11 +138,11 @@ class ScriptExecutor:
             os.environ['RUNBOOK_CORRELATION_ID'] = correlation_id
             logger.debug(f"Set system environment variable: RUNBOOK_CORRELATION_ID = {correlation_id}")
         
-        # Construct API base URL from config
-        api_base_url = f"{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}"
-        original_env['RUNBOOK_API_BASE_URL'] = os.environ.get('RUNBOOK_API_BASE_URL')
-        os.environ['RUNBOOK_API_BASE_URL'] = api_base_url
-        logger.debug(f"Set system environment variable: RUNBOOK_API_BASE_URL = {api_base_url}")
+        # Construct API URL with /api/runbooks path from config
+        runbook_url = f"{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}/api/runbooks"
+        original_env['RUNBOOK_URL'] = os.environ.get('RUNBOOK_URL')
+        os.environ['RUNBOOK_URL'] = runbook_url
+        logger.debug(f"Set system environment variable: RUNBOOK_URL = {runbook_url}")
         
         # Set recursion stack as JSON string
         if recursion_stack is not None:
@@ -265,7 +265,7 @@ class ScriptExecutor:
                         logger.debug(f"Restored environment: {key} = (masked)")
                     else:
                         display_value = original_value[:50] if len(str(original_value)) > 50 else original_value
-                        logger.debug(f"Restored environment: {key} = {display_value}...")
+                        logger.debug(f"Restored environment: {key} = {display_value}")
                     os.environ[key] = original_value
     
     @staticmethod

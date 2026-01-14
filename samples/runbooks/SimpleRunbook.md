@@ -32,3 +32,138 @@ echo "SimpleRunbook completed successfully"
 ```
 
 # History
+
+### 2026-01-14T18:34:51.791Z | Exit Code: 1
+
+**Stderr:**
+```
+Validation error
+```
+
+### 2026-01-14T18:34:51.795Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion detected: Runbook SimpleRunbook.md already in execution chain: ['ParentRunbook.md', 'SimpleRunbook.md']
+```
+
+### 2026-01-14T18:34:51.796Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion depth limit exceeded: 50 (max: 50)
+```
+
+### 2026-01-14T18:34:51.797Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:34:51.797Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:34:51.798Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:05.682Z | Exit Code: 1
+
+**Stderr:**
+```
+Validation error
+```
+
+### 2026-01-14T18:35:05.686Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion detected: Runbook SimpleRunbook.md already in execution chain: ['ParentRunbook.md', 'SimpleRunbook.md']
+```
+
+### 2026-01-14T18:35:05.687Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion depth limit exceeded: 50 (max: 50)
+```
+
+### 2026-01-14T18:35:05.687Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:05.688Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:05.689Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:11.062Z | Exit Code: 1
+
+**Stderr:**
+```
+Validation error
+```
+
+### 2026-01-14T18:35:11.066Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion detected: Runbook SimpleRunbook.md already in execution chain: ['ParentRunbook.md', 'SimpleRunbook.md']
+```
+
+### 2026-01-14T18:35:11.066Z | Exit Code: 1
+
+**Stderr:**
+```
+Recursion depth limit exceeded: 50 (max: 50)
+```
+
+### 2026-01-14T18:35:11.067Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:11.068Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+
+
+### 2026-01-14T18:35:11.069Z | Exit Code: 0
+
+**Stdout:**
+```
+success
+```
+

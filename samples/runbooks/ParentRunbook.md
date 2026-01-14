@@ -23,13 +23,13 @@ roles: developer, admin
 echo "Parent runbook starting"
 echo "Correlation ID: $RUNBOOK_CORRELATION_ID"
 echo "Recursion stack: $RUNBOOK_RECURSION_STACK"
-echo "API Base URL: $RUNBOOK_API_BASE_URL"
+echo "Runbook URL: $RUNBOOK_URL"
 
 # Call child runbook via API
 # The recursion stack already includes this runbook's filename
 # Just pass it as-is in the X-Recursion-Stack header
 echo "Calling SimpleRunbook.md as sub-runbook..."
-RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$RUNBOOK_API_BASE_URL/api/runbooks/SimpleRunbook.md/execute" \
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$RUNBOOK_URL/SimpleRunbook.md/execute" \
   -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
   -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
   -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \

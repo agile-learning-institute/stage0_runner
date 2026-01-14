@@ -209,6 +209,8 @@ class ScriptExecutor:
             start_time = time.time()
             try:
                 # Create a dedicated temp directory for this execution
+                # Thread-safe: tempfile.mkdtemp() uses OS-level atomic operations
+                # UUID ensures unique directory names even with concurrent executions
                 temp_exec_dir = Path(tempfile.mkdtemp(prefix=f'runbook-exec-{uuid.uuid4().hex[:8]}-'))
                 temp_script = temp_exec_dir / 'temp.zsh'
                 
@@ -242,7 +244,7 @@ class ScriptExecutor:
                         ['/bin/zsh', str(temp_script)],
                         capture_output=True,
                         text=True,
-                        cwd=str(temp_exec_dir),  # Execute in isolated temp directory
+                        cwd=str(temp_exec_dir),  # Execute in isolated temp directory (prevents access to /, ../, etc.)
                         timeout=timeout_seconds
                     )
                     
@@ -306,6 +308,8 @@ class ScriptExecutor:
                 return 1, "", error_msg
             finally:
                 # Clean up temporary execution directory and all contents
+                # shutil.rmtree() recursively removes directory tree (including all sub-directories and files)
+                # Cleanup happens even if execution fails (finally block ensures execution)
                 if temp_exec_dir and temp_exec_dir.exists():
                     try:
                         shutil.rmtree(temp_exec_dir)

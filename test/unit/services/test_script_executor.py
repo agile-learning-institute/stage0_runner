@@ -5,6 +5,8 @@ Tests for ScriptExecutor.
 import os
 import sys
 import json
+import tempfile
+import shutil
 from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
@@ -342,3 +344,213 @@ def test_execute_script_optional_system_vars():
         # Clean up
         for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
             os.environ.pop(key, None)
+
+
+# ============================================================================
+# Input File Copying Tests
+# ============================================================================
+
+def test_copy_input_files_single_file():
+    """Test copying a single file to temp directory."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create a test file
+        test_file = runbook_dir / 'test_input.txt'
+        test_file.write_text('test content')
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Copy the file
+        errors = ScriptExecutor._copy_input_files(['test_input.txt'], runbook_dir, temp_exec_dir)
+        
+        # Verify no errors
+        assert len(errors) == 0, f"Should not have errors: {errors}"
+        
+        # Verify file was copied
+        copied_file = temp_exec_dir / 'test_input.txt'
+        assert copied_file.exists(), "File should be copied to temp directory"
+        assert copied_file.read_text() == 'test content', "File content should match"
+
+
+def test_copy_input_files_multiple_files():
+    """Test copying multiple files to temp directory."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create test files
+        test_file1 = runbook_dir / 'file1.txt'
+        test_file1.write_text('content1')
+        test_file2 = runbook_dir / 'file2.txt'
+        test_file2.write_text('content2')
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Copy files
+        errors = ScriptExecutor._copy_input_files(['file1.txt', 'file2.txt'], runbook_dir, temp_exec_dir)
+        
+        # Verify no errors
+        assert len(errors) == 0, f"Should not have errors: {errors}"
+        
+        # Verify both files were copied
+        copied_file1 = temp_exec_dir / 'file1.txt'
+        copied_file2 = temp_exec_dir / 'file2.txt'
+        assert copied_file1.exists(), "File1 should be copied"
+        assert copied_file2.exists(), "File2 should be copied"
+        assert copied_file1.read_text() == 'content1', "File1 content should match"
+        assert copied_file2.read_text() == 'content2', "File2 content should match"
+
+
+def test_copy_input_files_directory():
+    """Test copying a directory to temp directory."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create a test directory with files
+        test_dir = runbook_dir / 'test_dir'
+        test_dir.mkdir()
+        (test_dir / 'file1.txt').write_text('content1')
+        (test_dir / 'file2.txt').write_text('content2')
+        (test_dir / 'subdir').mkdir()
+        (test_dir / 'subdir' / 'file3.txt').write_text('content3')
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Copy the directory
+        errors = ScriptExecutor._copy_input_files(['test_dir'], runbook_dir, temp_exec_dir)
+        
+        # Verify no errors
+        assert len(errors) == 0, f"Should not have errors: {errors}"
+        
+        # Verify directory structure was copied
+        copied_dir = temp_exec_dir / 'test_dir'
+        assert copied_dir.exists(), "Directory should be copied"
+        assert copied_dir.is_dir(), "Copied path should be a directory"
+        assert (copied_dir / 'file1.txt').exists(), "File1 should be in copied directory"
+        assert (copied_dir / 'file2.txt').exists(), "File2 should be in copied directory"
+        assert (copied_dir / 'subdir' / 'file3.txt').exists(), "Subdirectory file should be copied"
+        assert (copied_dir / 'file1.txt').read_text() == 'content1', "File1 content should match"
+        assert (copied_dir / 'subdir' / 'file3.txt').read_text() == 'content3', "File3 content should match"
+
+
+def test_copy_input_files_path_traversal_prevention():
+    """Test that path traversal attacks are prevented."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create a file outside runbook_dir
+        outside_dir = Path(temp_base) / 'outside'
+        outside_dir.mkdir()
+        (outside_dir / 'secret.txt').write_text('secret')
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Try to access file outside runbook_dir using path traversal
+        errors = ScriptExecutor._copy_input_files(['../outside/secret.txt'], runbook_dir, temp_exec_dir)
+        
+        # Should have error about path escaping
+        assert len(errors) > 0, "Should reject path traversal attempt"
+        assert any('escapes runbook directory' in err for err in errors), \
+            "Error message should mention path escaping"
+        
+        # Verify file was NOT copied
+        assert not (temp_exec_dir / 'secret.txt').exists(), "File should not be copied"
+
+
+def test_copy_input_files_nonexistent_file():
+    """Test handling of non-existent input files."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Try to copy non-existent file
+        errors = ScriptExecutor._copy_input_files(['nonexistent.txt'], runbook_dir, temp_exec_dir)
+        
+        # Should have error about file not existing
+        assert len(errors) > 0, "Should have error for non-existent file"
+        assert any('does not exist' in err for err in errors), \
+            "Error message should mention file does not exist"
+
+
+def test_copy_input_files_empty_list():
+    """Test that empty input list returns no errors."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        temp_exec_dir = Path(temp_base) / 'exec'
+        temp_exec_dir.mkdir()
+        
+        # Copy empty list
+        errors = ScriptExecutor._copy_input_files([], runbook_dir, temp_exec_dir)
+        
+        # Should have no errors
+        assert len(errors) == 0, "Empty list should return no errors"
+
+
+def test_execute_script_with_input_files():
+    """Test executing a script with input files available."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create a test file
+        test_file = runbook_dir / 'test_data.txt'
+        test_file.write_text('test data content')
+        
+        # Script that reads the input file
+        script = """#! /bin/zsh
+cat test_data.txt
+"""
+        
+        # Execute script with input file
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            input_paths=['test_data.txt'],
+            runbook_dir=runbook_dir
+        )
+        
+        # Verify script executed successfully
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        assert 'test data content' in stdout, "Script should read input file content"
+
+
+def test_execute_script_with_input_directory():
+    """Test executing a script with input directory available."""
+    with tempfile.TemporaryDirectory() as temp_base:
+        runbook_dir = Path(temp_base) / 'runbooks'
+        runbook_dir.mkdir()
+        
+        # Create a test directory with a file
+        test_dir = runbook_dir / 'data'
+        test_dir.mkdir()
+        (test_dir / 'file.txt').write_text('directory content')
+        
+        # Script that lists and reads from the input directory
+        script = """#! /bin/zsh
+ls -la data/
+cat data/file.txt
+"""
+        
+        # Execute script with input directory
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            input_paths=['data'],
+            runbook_dir=runbook_dir
+        )
+        
+        # Verify script executed successfully
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        assert 'directory content' in stdout, "Script should read from input directory"
+        assert 'file.txt' in stdout, "Script should list files in input directory"

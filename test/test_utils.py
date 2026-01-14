@@ -48,8 +48,8 @@ def save_all_test_runbooks() -> None:
     repo_root = Path(__file__).parent.parent
     runbooks_dir = repo_root / 'samples' / 'runbooks'
     
-    # Save SimpleRunbook.md and ParentRunbook.md (the ones used in tests)
-    for runbook_name in ['SimpleRunbook.md', 'ParentRunbook.md']:
+    # Save SimpleRunbook.md, ParentRunbook.md, and CreatePackage.md (the ones used in tests)
+    for runbook_name in ['SimpleRunbook.md', 'ParentRunbook.md', 'CreatePackage.md']:
         runbook_path = runbooks_dir / runbook_name
         if runbook_path.exists():
             save_runbook(runbook_path)
@@ -60,8 +60,8 @@ def restore_all_test_runbooks() -> None:
     repo_root = Path(__file__).parent.parent
     runbooks_dir = repo_root / 'samples' / 'runbooks'
     
-    # Restore SimpleRunbook.md and ParentRunbook.md
-    for runbook_name in ['SimpleRunbook.md', 'ParentRunbook.md']:
+    # Restore SimpleRunbook.md, ParentRunbook.md, and CreatePackage.md
+    for runbook_name in ['SimpleRunbook.md', 'ParentRunbook.md', 'CreatePackage.md']:
         runbook_path = runbooks_dir / runbook_name
         if runbook_path.exists():
             restore_runbook(runbook_path)

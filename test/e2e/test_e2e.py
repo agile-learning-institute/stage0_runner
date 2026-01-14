@@ -7,7 +7,7 @@ on the default port (8083). They make HTTP requests to test complete workflows
 from API calls through runbook execution, including authentication, authorization,
 error handling, and concurrent scenarios.
 
-Tests use SimpleRunbook.md and ParentRunbook.md and restore them to original state after completion.
+Tests use SimpleRunbook.md, ParentRunbook.md, and CreatePackage.md and restore them to original state after completion.
 
 To run these tests:
 1. Start the API server: pipenv run dev
@@ -221,6 +221,55 @@ def test_e2e_parent_runbook_sub_runbook_execution(api_base_url, check_server_run
     if data['success']:
         assert 'Parent runbook' in data['stdout'].lower() or 'parent' in data['stdout'].lower()
         # May also see child runbook output if sub-runbook execution worked
+
+
+def test_e2e_createpackage_input_files_and_folders(api_base_url, check_server_running, dev_token):
+    """Test CreatePackage.md with input files and folders."""
+    # Step 1: Verify CreatePackage.md exists and can be loaded
+    response = requests.get(
+        f'{api_base_url}/api/runbooks/CreatePackage.md',
+        headers={'Authorization': f'Bearer {dev_token}'}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['success'] is True
+    assert 'CreatePackage' in data['name']
+    
+    # Step 2: Validate CreatePackage.md
+    response = requests.patch(
+        f'{api_base_url}/api/runbooks/CreatePackage.md/validate',
+        headers={'Authorization': f'Bearer {dev_token}'},
+        json={'env_vars': {'GITHUB_TOKEN': 'test-token'}},
+    )
+    assert response.status_code == 200, f"Validation failed: {response.text}"
+    data = response.json()
+    assert data['success'] is True, f"Validation should succeed, got errors: {data.get('errors', [])}"
+    assert len(data.get('errors', [])) == 0, f"Validation errors: {data.get('errors', [])}"
+    
+    # Step 3: Execute CreatePackage.md (which uses input files/folders)
+    response = requests.post(
+        f'{api_base_url}/api/runbooks/CreatePackage.md/execute',
+        headers={'Authorization': f'Bearer {dev_token}'},
+        json={'env_vars': {'GITHUB_TOKEN': 'test-token'}},
+    )
+    assert response.status_code == 200, f"Execution request failed: {response.text}"
+    data = response.json()
+    assert 'success' in data
+    assert 'return_code' in data
+    assert 'runbook' in data
+    assert data['runbook'] == 'CreatePackage.md'
+    
+    # Step 4: Verify input files/folders were accessible
+    assert len(data.get('errors', [])) == 0, f"Execution should not have validation errors: {data.get('errors', [])}"
+    if data['success']:
+        # Verify input folder contents were accessed (CreatePackage/input.txt)
+        assert 'Input Folder Contents' in data['stdout'], "Script should display input folder contents"
+        assert 'sample input file' in data['stdout'].lower() or 'input file access' in data['stdout'].lower(), \
+            "Script should read from input folder"
+        # Verify dockerfile reference (CreatePackage.dockerfile)
+        assert 'docker build' in data['stdout'].lower() or 'CreatePackage.dockerfile' in data['stdout'], \
+            "Script should reference dockerfile"
+        assert 'Create Package Completed' in data['stdout'], "Script should complete successfully"
 
 
 # ============================================================================

@@ -190,7 +190,13 @@ def create_runbook_routes(runbooks_dir: str):
         breadcrumb = create_flask_breadcrumb(token)
         env_vars = _extract_env_vars_from_request()
         
-        result = runbook_service.execute_runbook(filename, token, breadcrumb, env_vars)
+        # Extract raw JWT token string from Authorization header for passing to scripts
+        auth_header = request.headers.get('Authorization', '')
+        token_string = None
+        if auth_header.startswith('Bearer '):
+            token_string = auth_header[7:].strip()
+        
+        result = runbook_service.execute_runbook(filename, token, breadcrumb, env_vars, token_string=token_string)
         logger.info(f"execute_runbook Success {str(breadcrumb['at_time'])}, {breadcrumb['correlation_id']}")
         
         status_code = 200 if result['success'] else 500

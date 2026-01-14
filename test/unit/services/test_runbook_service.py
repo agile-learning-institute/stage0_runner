@@ -19,6 +19,31 @@ from src.services.rbac_authorizer import RBACAuthorizer
 from src.config.config import Config
 from src.flask_utils.exceptions import HTTPNotFound, HTTPForbidden, HTTPInternalServerError
 
+# Import test utilities for runbook cleanup
+from test.test_utils import save_runbook, restore_runbook
+
+# Paths to runbooks used in tests
+SIMPLE_RUNBOOK_PATH = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+PARENT_RUNBOOK_PATH = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'ParentRunbook.md'
+
+
+@pytest.fixture(autouse=True)
+def restore_runbooks_after_test():
+    """Restore runbooks after each test that may have modified them."""
+    # Save before test
+    if SIMPLE_RUNBOOK_PATH.exists():
+        save_runbook(SIMPLE_RUNBOOK_PATH)
+    if PARENT_RUNBOOK_PATH.exists():
+        save_runbook(PARENT_RUNBOOK_PATH)
+    
+    yield
+    
+    # Restore after test
+    if SIMPLE_RUNBOOK_PATH.exists():
+        restore_runbook(SIMPLE_RUNBOOK_PATH)
+    if PARENT_RUNBOOK_PATH.exists():
+        restore_runbook(PARENT_RUNBOOK_PATH)
+
 
 def test_load_valid_runbook():
     """Test loading a valid runbook."""
@@ -1435,6 +1460,145 @@ def test_get_required_env_exception():
     with patch.object(RunbookParser, 'load_runbook', side_effect=Exception("Unexpected error")):
         with pytest.raises(HTTPInternalServerError, match="Failed to get required environment variables"):
             service.get_required_env('SimpleRunbook.md', token, breadcrumb)
+
+
+def test_execute_runbook_recursion_detection():
+    """Test execute_runbook detects recursion when runbook is already in execution chain."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {
+        'at_time': '2026-01-01T00:00:00Z',
+        'correlation_id': 'test-123',
+        'recursion_stack': ['ParentRunbook.md', 'SimpleRunbook.md']  # SimpleRunbook.md is already in stack
+    }
+    
+    result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+    
+    assert result['success'] is False, "Should fail due to recursion"
+    assert result['return_code'] == 1, "Should return error code"
+    assert 'Recursion detected' in result['stderr'], "Should have recursion error message"
+    assert 'SimpleRunbook.md' in result['stderr'], "Should mention the runbook in error"
+
+
+def test_execute_runbook_recursion_depth_limit():
+    """Test execute_runbook enforces recursion depth limit."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    config = Config.get_instance()
+    
+    # Create a recursion stack at the limit
+    recursion_stack = [f'Runbook{i}.md' for i in range(config.MAX_RECURSION_DEPTH)]
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {
+        'at_time': '2026-01-01T00:00:00Z',
+        'correlation_id': 'test-123',
+        'recursion_stack': recursion_stack
+    }
+    
+    result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb)
+    
+    assert result['success'] is False, "Should fail due to recursion depth limit"
+    assert result['return_code'] == 1, "Should return error code"
+    assert 'Recursion depth limit exceeded' in result['stderr'], "Should have depth limit error message"
+
+
+def test_execute_runbook_recursion_stack_building():
+    """Test execute_runbook builds recursion stack correctly for script execution."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {
+        'at_time': '2026-01-01T00:00:00Z',
+        'correlation_id': 'test-123',
+        'recursion_stack': ['ParentRunbook.md']  # Starting with parent
+    }
+    env_vars = {'TEST_VAR': 'test_value'}  # Provide required env var
+    
+    # Mock ScriptExecutor to capture the recursion_stack passed to it
+    captured_recursion_stack = []
+    original_execute = ScriptExecutor.execute_script
+    
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+        captured_recursion_stack.append(recursion_stack)
+        return 0, "success", ""
+    
+    with patch.object(ScriptExecutor, 'execute_script', side_effect=mock_execute):
+        result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb, env_vars=env_vars)
+    
+    # Verify recursion stack includes current runbook
+    assert len(captured_recursion_stack) > 0, "Should call execute_script"
+    assert captured_recursion_stack[0] == ['ParentRunbook.md', 'SimpleRunbook.md'], \
+        "Recursion stack should include parent and current runbook"
+    
+    # Verify breadcrumb was updated
+    assert breadcrumb['recursion_stack'] == ['ParentRunbook.md', 'SimpleRunbook.md'], \
+        "Breadcrumb should be updated with new recursion stack"
+
+
+def test_execute_runbook_top_level_execution():
+    """Test execute_runbook handles top-level execution (no recursion stack)."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {
+        'at_time': '2026-01-01T00:00:00Z',
+        'correlation_id': 'test-123',
+        'recursion_stack': None  # Top-level execution
+    }
+    env_vars = {'TEST_VAR': 'test_value'}  # Provide required env var
+    
+    # Mock ScriptExecutor to capture the recursion_stack passed to it
+    captured_recursion_stack = []
+    
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+        captured_recursion_stack.append(recursion_stack)
+        return 0, "success", ""
+    
+    with patch.object(ScriptExecutor, 'execute_script', side_effect=mock_execute):
+        result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb, env_vars=env_vars)
+    
+    # Verify recursion stack includes only current runbook for top-level execution
+    assert len(captured_recursion_stack) > 0, "Should call execute_script"
+    assert captured_recursion_stack[0] == ['SimpleRunbook.md'], \
+        "Top-level execution should have stack with only current runbook"
+
+
+def test_execute_runbook_passes_token_and_correlation():
+    """Test execute_runbook passes token_string and correlation_id to ScriptExecutor."""
+    runbooks_dir = str(Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks')
+    service = RunbookService(runbooks_dir)
+    
+    token = {'user_id': 'test-user', 'claims': {'roles': ['developer']}}
+    breadcrumb = {
+        'at_time': '2026-01-01T00:00:00Z',
+        'correlation_id': 'test-correlation-456',
+        'recursion_stack': None
+    }
+    token_string = "test-token-123"
+    env_vars = {'TEST_VAR': 'test_value'}  # Provide required env var
+    
+    # Mock ScriptExecutor to capture parameters
+    captured_params = {}
+    
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+        captured_params['token_string'] = token_string
+        captured_params['correlation_id'] = correlation_id
+        captured_params['recursion_stack'] = recursion_stack
+        return 0, "success", ""
+    
+    with patch.object(ScriptExecutor, 'execute_script', side_effect=mock_execute):
+        result = service.execute_runbook('SimpleRunbook.md', token, breadcrumb, env_vars=env_vars, token_string=token_string)
+    
+    # Verify parameters were passed correctly
+    assert 'token_string' in captured_params, "Should capture token_string"
+    assert captured_params['token_string'] == token_string, "Token string should be passed"
+    assert captured_params['correlation_id'] == 'test-correlation-456', "Correlation ID should be passed"
+    assert captured_params['recursion_stack'] == ['SimpleRunbook.md'], "Recursion stack should be passed"
 
 
 # Tests can be run with pytest or the custom runner below

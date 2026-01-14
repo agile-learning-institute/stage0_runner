@@ -4,6 +4,7 @@ Tests for ScriptExecutor.
 """
 import os
 import sys
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
@@ -170,3 +171,174 @@ def test_truncate_output_exact_size():
     
     assert was_truncated is False
     assert truncated == output
+
+
+def test_execute_script_system_env_vars_set():
+    """Test execute_script sets system environment variables correctly."""
+    config = Config.get_instance()
+    
+    # Use separate echo commands to avoid splitting issues with JSON
+    script = "echo TOKEN:$RUNBOOK_API_TOKEN; echo CORRELATION:$RUNBOOK_CORRELATION_ID; echo URL:$RUNBOOK_URL; echo STACK:$RUNBOOK_RECURSION_STACK; echo H_AUTH:$RUNBOOK_H_AUTH; echo H_CORR:$RUNBOOK_H_CORR; echo H_RECUR:$RUNBOOK_H_RECUR; echo H_CTYPE:$RUNBOOK_H_CTYPE"
+    token_string = "test-token-123"
+    correlation_id = "test-correlation-456"
+    recursion_stack = ["ParentRunbook.md", "ChildRunbook.md"]
+    
+    # Clean up any existing env vars
+    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK', 
+                'RUNBOOK_H_AUTH', 'RUNBOOK_H_CORR', 'RUNBOOK_H_RECUR', 'RUNBOOK_H_CTYPE']:
+        os.environ.pop(key, None)
+    
+    try:
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            token_string=token_string,
+            correlation_id=correlation_id,
+            recursion_stack=recursion_stack
+        )
+        
+        # Check that system vars were set during execution
+        # The script should output the values
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        output = stdout.strip()
+        
+        # Verify token was set (should be in output)
+        assert f"TOKEN:{token_string}" in output, f"Token should be in output, got: {output}"
+        # Verify correlation_id was set
+        assert f"CORRELATION:{correlation_id}" in output, f"Correlation ID should be in output, got: {output}"
+        # Verify API URL was constructed correctly with /api/runbooks path
+        expected_url = f"{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}/api/runbooks"
+        assert f"URL:{expected_url}" in output, f"API URL should be in output, got: {output}"
+        # Verify recursion stack was JSON encoded
+        stack_json = json.dumps(recursion_stack)
+        assert f"STACK:{stack_json}" in output, f"Recursion stack should be in output, got: {output}"
+        # Verify pre-formatted headers were set
+        assert f"H_AUTH:Authorization: Bearer {token_string}" in output, f"Auth header should be in output, got: {output}"
+        assert f"H_CORR:X-Correlation-Id: {correlation_id}" in output, f"Correlation header should be in output, got: {output}"
+        assert f"H_RECUR:X-Recursion-Stack: {stack_json}" in output, f"Recursion header should be in output, got: {output}"
+        assert "H_CTYPE:Content-Type: application/json" in output, f"Content-Type header should be in output, got: {output}"
+    finally:
+        # Clean up
+        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                    'RUNBOOK_H_AUTH', 'RUNBOOK_H_CORR', 'RUNBOOK_H_RECUR', 'RUNBOOK_H_CTYPE']:
+            os.environ.pop(key, None)
+
+
+def test_execute_script_user_cannot_override_system_vars():
+    """Test execute_script prevents user from overriding system-managed environment variables."""
+    script = "echo $RUNBOOK_API_TOKEN"
+    token_string = "system-token"
+    user_env_vars = {
+        'RUNBOOK_API_TOKEN': 'user-token',
+        'RUNBOOK_CORRELATION_ID': 'user-correlation',
+        'RUNBOOK_URL': 'user-url',
+        'RUNBOOK_RECURSION_STACK': 'user-stack',
+        'RUNBOOK_H_AUTH': 'user-header-auth',
+        'RUNBOOK_H_CORR': 'user-header-correlation',
+        'RUNBOOK_H_RECUR': 'user-header-recursion',
+        'RUNBOOK_H_CTYPE': 'user-header-content-type',
+        'RUNBOOK_HEADERS': 'user-headers'
+    }
+    
+    # Clean up any existing env vars
+    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                'RUNBOOK_H_AUTH', 'RUNBOOK_H_CORR', 'RUNBOOK_H_RECUR', 
+                'RUNBOOK_H_CTYPE', 'RUNBOOK_HEADERS']:
+        os.environ.pop(key, None)
+    
+    try:
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            env_vars=user_env_vars,
+            token_string=token_string,
+            correlation_id="system-correlation"
+        )
+        
+        # System values should take precedence (user values ignored)
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        output = stdout.strip()
+        # System token should be used, not user token
+        assert token_string in output, "System token should be used, not user token"
+        assert 'user-token' not in output, "User token should be ignored"
+    finally:
+        # Clean up
+        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK',
+                    'RUNBOOK_H_AUTH', 'RUNBOOK_H_CORR', 'RUNBOOK_H_RECUR', 
+                    'RUNBOOK_H_CTYPE', 'RUNBOOK_HEADERS']:
+            os.environ.pop(key, None)
+
+
+def test_execute_script_recursion_stack_json_encoding():
+    """Test execute_script encodes recursion stack as JSON string."""
+    script = "echo $RUNBOOK_RECURSION_STACK"
+    recursion_stack = ["ParentRunbook.md", "ChildRunbook.md", "GrandchildRunbook.md"]
+    
+    # Clean up any existing env vars
+    os.environ.pop('RUNBOOK_RECURSION_STACK', None)
+    
+    try:
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            recursion_stack=recursion_stack
+        )
+        
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        output = stdout.strip()
+        
+        # Should be valid JSON
+        parsed_stack = json.loads(output)
+        assert parsed_stack == recursion_stack, "Recursion stack should be correctly JSON encoded/decoded"
+    finally:
+        # Clean up
+        os.environ.pop('RUNBOOK_RECURSION_STACK', None)
+
+
+def test_execute_script_api_url_construction():
+    """Test execute_script constructs API URL with /api/runbooks path from config."""
+    config = Config.get_instance()
+    script = "echo $RUNBOOK_URL"
+    
+    # Clean up any existing env vars
+    os.environ.pop('RUNBOOK_URL', None)
+    
+    try:
+        return_code, stdout, stderr = ScriptExecutor.execute_script(script)
+        
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        output = stdout.strip()
+        
+        expected_url = f"{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}/api/runbooks"
+        assert output == expected_url, f"API URL should be {expected_url}, got {output}"
+    finally:
+        # Clean up
+        os.environ.pop('RUNBOOK_URL', None)
+
+
+def test_execute_script_optional_system_vars():
+    """Test execute_script handles optional system environment variables (None values)."""
+    # Script that outputs RUNBOOK_URL to verify it's set during execution
+    script = "echo RUNBOOK_URL:$RUNBOOK_URL"
+    
+    # Clean up any existing env vars
+    for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_RECURSION_STACK', 'RUNBOOK_URL']:
+        os.environ.pop(key, None)
+    
+    try:
+        # Call with all None (should not set optional vars, but RUNBOOK_URL should always be set)
+        return_code, stdout, stderr = ScriptExecutor.execute_script(
+            script,
+            token_string=None,
+            correlation_id=None,
+            recursion_stack=None
+        )
+        
+        assert return_code == 0, f"Script should succeed, got stderr: {stderr}"
+        
+        # RUNBOOK_URL should be set during execution (check output)
+        output = stdout.strip()
+        assert 'RUNBOOK_URL:' in output, "RUNBOOK_URL should be set and output by script"
+        assert 'RUNBOOK_URL:http://localhost:8083/api/runbooks' in output or 'RUNBOOK_URL:https://' in output, \
+            "RUNBOOK_URL should contain the API URL with /api/runbooks path"
+    finally:
+        # Clean up
+        for key in ['RUNBOOK_API_TOKEN', 'RUNBOOK_CORRELATION_ID', 'RUNBOOK_URL', 'RUNBOOK_RECURSION_STACK']:
+            os.environ.pop(key, None)

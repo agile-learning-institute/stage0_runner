@@ -125,3 +125,114 @@ When a runbook is executed, the API follows this process:
 
 8. **Remove temp.zsh** and cleanup temporary directory
    - Automatic cleanup even on errors
+
+## Sub-Runbook Execution
+
+Runbooks can call other runbooks (sub-runbooks) via API calls. This enables composition of complex workflows from simpler, reusable runbooks.
+
+### Available Environment Variables
+
+When a runbook script executes, the following system-managed environment variables are automatically available:
+
+- **`RUNBOOK_API_TOKEN`** - The JWT token string for authenticating API requests
+  - Use in `Authorization: Bearer $RUNBOOK_API_TOKEN` header
+  - System-managed, cannot be overridden by user env_vars
+
+- **`RUNBOOK_CORRELATION_ID`** - The correlation ID for request tracking across nested executions
+  - Use in `X-Correlation-Id: $RUNBOOK_CORRELATION_ID` header
+  - Enables tracing request chains across nested runbook executions
+  - System-managed, cannot be overridden by user env_vars
+
+- **`RUNBOOK_URL`** - The API URL with `/api/runbooks` path included (e.g., `http://localhost:8083/api/runbooks`)
+  - Constructed from `API_PROTOCOL`, `API_HOST`, and `API_PORT` configuration
+  - Default: `http://localhost:8083/api/runbooks` (scripts run in same container)
+  - Use directly in API calls: `"$RUNBOOK_URL/SimpleRunbook.md/execute"`
+  - System-managed, cannot be overridden by user env_vars
+
+- **`RUNBOOK_RECURSION_STACK`** - JSON array of runbook filenames in the execution chain
+  - Format: `["ParentRunbook.md", "ChildRunbook.md"]` (includes current runbook)
+  - Use in `X-Recursion-Stack: $RUNBOOK_RECURSION_STACK` header
+  - Used for recursion detection and prevention
+  - System-managed, cannot be overridden by user env_vars
+  - **Note**: The stack passed to scripts already includes the current runbook's filename
+
+- **Pre-formatted Header Variables** - Ready-to-use header strings for curl commands (short names for convenience):
+  - **`RUNBOOK_H_AUTH`** - Pre-formatted: `"Authorization: Bearer $RUNBOOK_API_TOKEN"`
+  - **`RUNBOOK_H_CORR`** - Pre-formatted: `"X-Correlation-Id: $RUNBOOK_CORRELATION_ID"`
+  - **`RUNBOOK_H_RECUR`** - Pre-formatted: `"X-Recursion-Stack: $RUNBOOK_RECURSION_STACK"`
+  - **`RUNBOOK_H_CTYPE`** - Pre-formatted: `"Content-Type: application/json"`
+  - All system-managed, cannot be overridden by user env_vars
+  - Use directly: `-H "$RUNBOOK_H_AUTH" -H "$RUNBOOK_H_CORR" -H "$RUNBOOK_H_RECUR" -H "$RUNBOOK_H_CTYPE"`
+
+### Calling a Sub-Runbook
+
+To call a sub-runbook from your script, make an HTTP POST request to the API:
+
+```sh
+#! /bin/zsh
+echo "Parent runbook starting"
+
+# Call child runbook via API using pre-formatted header variables
+# This makes it easy to do right and hard to do wrong
+# All headers on one line for easy copy/paste
+RESPONSE=$(curl -s -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
+  -H "$RUNBOOK_H_AUTH" -H "$RUNBOOK_H_CORR" -H "$RUNBOOK_H_RECUR" -H "$RUNBOOK_H_CTYPE" \
+  -d '{"env_vars":{"CHILD_VAR":"value"}}')
+
+echo "Child runbook response: $RESPONSE"
+echo "Parent runbook completed"
+```
+
+**Important Notes:**
+- **Use pre-formatted header variables** (`RUNBOOK_H_*`) for easy, correct API calls
+- Always pass `X-Recursion-Stack` header to maintain recursion protection
+- The recursion stack passed to scripts already includes the current runbook
+- Pass the stack as-is (no manipulation needed)
+- Always pass `X-Correlation-Id` for request tracing
+- Use `RUNBOOK_URL` for the API endpoint (already includes `/api/runbooks` path)
+
+**Alternative: Manual Header Construction**
+
+If you need to construct headers manually, you can still use the individual values:
+```sh
+curl -X POST "$RUNBOOK_URL/ChildRunbook.md/execute" \
+  -H "Authorization: Bearer $RUNBOOK_API_TOKEN" \
+  -H "X-Correlation-Id: $RUNBOOK_CORRELATION_ID" \
+  -H "X-Recursion-Stack: $RUNBOOK_RECURSION_STACK" \
+  -H "Content-Type: application/json" \
+  -d '{"env_vars":{}}'
+```
+
+However, using the pre-formatted header variables is recommended as it reduces errors and makes the code cleaner.
+
+### Recursion Protection
+
+The system automatically prevents infinite loops and circular dependencies:
+
+1. **Recursion Detection**: Before executing a runbook, the API checks if its filename appears in the recursion stack. If found, execution is rejected with an error written to stderr.
+
+2. **Recursion Depth Limit**: The system enforces a maximum recursion depth (default: 50) to prevent resource exhaustion from very deep legitimate nesting.
+
+3. **Error Handling**: Recursion violations are written to stderr, which persists in execution history for debugging and monitoring.
+
+**Example Recursion Error:**
+```
+Recursion detected: Runbook ParentRunbook.md already in execution chain: ["ParentRunbook.md", "ChildRunbook.md", "ParentRunbook.md"]
+```
+
+**Example Depth Limit Error:**
+```
+Recursion depth limit exceeded: 50 (max: 50)
+```
+
+### Best Practices
+
+1. **Always pass recursion stack**: Include `X-Recursion-Stack` header in all sub-runbook calls to maintain protection
+2. **Use correlation IDs**: Pass `X-Correlation-Id` for request tracing across nested executions
+3. **Handle errors**: Check sub-runbook response status and handle errors appropriately
+4. **Keep runbooks focused**: Design runbooks to do one thing well, compose them for complex workflows
+5. **Test recursion scenarios**: Verify your runbook composition doesn't create circular dependencies
+
+### Example: Parent Runbook
+
+See `samples/runbooks/ParentRunbook.md` for a complete example of a parent runbook calling a child runbook.

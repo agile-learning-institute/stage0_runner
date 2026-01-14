@@ -171,6 +171,10 @@ Runbooks can specify required claims in the "Required Claims" section to control
 
 For complete details on runbook structure, required sections, history format, and execution processing, see [RUNBOOK.md](./RUNBOOK.md).
 
+### Sub-Runbook Execution
+
+Runbooks can call other runbooks (sub-runbooks) via API calls, enabling composition of complex workflows from simpler, reusable runbooks. Scripts automatically receive system environment variables (`RUNBOOK_API_TOKEN`, `RUNBOOK_CORRELATION_ID`, `RUNBOOK_URL`, `RUNBOOK_RECURSION_STACK`) for making API calls. The `RUNBOOK_URL` variable includes the `/api/runbooks` path for convenient use. The system includes automatic recursion detection and depth limiting to prevent infinite loops and circular dependencies. See [RUNBOOK.md](./RUNBOOK.md#sub-runbook-execution) for complete documentation and examples.
+
 ## Security
 
 For comprehensive security documentation, including security features, production requirements, known limitations, threat model, and best practices, see [SECURITY.md](./SECURITY.md).

@@ -81,18 +81,41 @@ class RunbookParser:
         # Get the position after the header
         start_pos = header_match.end()
         
-        # Find the next H1 header or end of file
-        next_header_pattern = r'^#\s+'
-        next_match = re.search(next_header_pattern, content[start_pos:], re.MULTILINE)
+        # Find the next H1 header, but skip over code blocks
+        # We need to track whether we're inside a code block
+        lines = content[start_pos:].split('\n')
+        in_code_block = False
+        code_block_marker = None
         
-        if next_match:
-            # Content ends at the next header
-            end_pos = start_pos + next_match.start()
-            section_content = content[start_pos:end_pos].strip()
-        else:
-            # This is the last section, content goes to end of file
-            section_content = content[start_pos:].strip()
+        for i, line in enumerate(lines):
+            # Check for code block markers (```)
+            stripped = line.strip()
+            if stripped.startswith('```'):
+                # Toggle code block state
+                if not in_code_block:
+                    # Starting a code block
+                    in_code_block = True
+                    code_block_marker = stripped[3:].strip()  # Language identifier if present
+                elif code_block_marker is None or stripped == '```':
+                    # Ending a code block (either no language specified or closing marker)
+                    in_code_block = False
+                    code_block_marker = None
+                continue
+            
+            # If we're inside a code block, skip checking for section headers
+            if in_code_block:
+                continue
+            
+            # Check if this line is an H1 section header (starts with # followed by space and text)
+            # H1 headers are: # SectionName (not ## or ###, and not #comment)
+            if re.match(r'^#\s+[^#\s]', line):
+                # Found the next section header
+                end_pos = start_pos + sum(len(l) + 1 for l in lines[:i]) - 1  # -1 to exclude the newline
+                section_content = content[start_pos:end_pos].strip()
+                return section_content
         
+        # This is the last section, content goes to end of file
+        section_content = content[start_pos:].strip()
         return section_content
     
     @staticmethod

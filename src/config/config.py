@@ -63,7 +63,10 @@ class Config:
             self.LOGGING_LEVEL = ''
             self.ENABLE_LOGIN = False
             self.API_PORT = 0
+            self.API_PROTOCOL = ''
+            self.API_HOST = ''
             self.RUNBOOKS_DIR = ''
+            self.MAX_RECURSION_DEPTH = 0
 
             # JWT Configuration
             self.JWT_SECRET = ''
@@ -88,6 +91,8 @@ class Config:
                 "LOGGING_LEVEL": "INFO",
                 "RUNBOOKS_DIR": "./samples/runbooks",
                 "RATE_LIMIT_STORAGE_BACKEND": "memory",  # memory or redis (if available)
+                "API_PROTOCOL": "http",  # http or https
+                "API_HOST": "localhost",  # hostname for API base URL
             }
             self.config_ints = {
                 "API_PORT": "8083",
@@ -96,6 +101,7 @@ class Config:
                 "MAX_OUTPUT_SIZE_BYTES": "10485760",  # 10MB default (10 * 1024 * 1024)
                 "RATE_LIMIT_PER_MINUTE": "60",  # 60 requests per minute default
                 "RATE_LIMIT_EXECUTE_PER_MINUTE": "10",  # 10 executions per minute (stricter)
+                "MAX_RECURSION_DEPTH": "50",  # Maximum recursion depth for nested runbook execution
             }
 
             self.config_booleans = {

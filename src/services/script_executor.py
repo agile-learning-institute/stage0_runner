@@ -5,13 +5,14 @@ Handles script execution with timeouts, output size limits, and environment vari
 """
 import os
 import re
+import json
 import subprocess
 import time
 import uuid
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 import logging
 
 from ..flask_utils.exceptions import HTTPInternalServerError
@@ -37,13 +38,22 @@ class ScriptExecutor:
     """
     
     @staticmethod
-    def execute_script(script: str, env_vars: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
+    def execute_script(
+        script: str, 
+        env_vars: Optional[Dict[str, str]] = None,
+        token_string: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        recursion_stack: Optional[List[str]] = None
+    ) -> Tuple[int, str, str]:
         """
         Execute a script with resource limits (timeout, output size).
         
         Args:
             script: The script content to execute
             env_vars: Optional dictionary of environment variables to set
+            token_string: Optional JWT token string for API authentication
+            correlation_id: Optional correlation ID for request tracking
+            recursion_stack: Optional list of runbook filenames in execution chain
             
         Returns:
             tuple: (return_code, stdout, stderr)
@@ -63,12 +73,25 @@ class ScriptExecutor:
             logger.warning(f"Invalid max_output_bytes value {max_output_bytes}, using Config default: {default_max_output}")
             max_output_bytes = default_max_output
         
+        # System-managed environment variables (protected from user override)
+        SYSTEM_ENV_VARS = {
+            'RUNBOOK_API_TOKEN',
+            'RUNBOOK_CORRELATION_ID',
+            'RUNBOOK_API_BASE_URL',
+            'RUNBOOK_RECURSION_STACK'
+        }
+        
         # Validate and sanitize environment variables
         original_env = {}
         sanitized_env_vars = {}
         
         if env_vars:
             for key, value in env_vars.items():
+                # Warn if user tries to override system-managed variables (but don't fail)
+                if key in SYSTEM_ENV_VARS:
+                    logger.warning(f"User attempted to override system-managed environment variable: {key}. User value will be ignored.")
+                    continue
+                
                 # Validate environment variable name
                 if not ENV_VAR_NAME_PATTERN.match(key):
                     logger.warning(f"Invalid environment variable name rejected: {key} (only alphanumeric and underscore allowed)")
@@ -103,6 +126,30 @@ class ScriptExecutor:
                 # Set the sanitized value in environment
                 os.environ[key] = sanitized_value
                 logger.debug(f"Set environment variable: {key} (value length: {len(sanitized_value)} bytes)")
+        
+        # Set system-managed environment variables (after user vars to ensure they take precedence)
+        if token_string:
+            original_env['RUNBOOK_API_TOKEN'] = os.environ.get('RUNBOOK_API_TOKEN')
+            os.environ['RUNBOOK_API_TOKEN'] = token_string
+            logger.debug("Set system environment variable: RUNBOOK_API_TOKEN (value masked)")
+        
+        if correlation_id:
+            original_env['RUNBOOK_CORRELATION_ID'] = os.environ.get('RUNBOOK_CORRELATION_ID')
+            os.environ['RUNBOOK_CORRELATION_ID'] = correlation_id
+            logger.debug(f"Set system environment variable: RUNBOOK_CORRELATION_ID = {correlation_id}")
+        
+        # Construct API base URL from config
+        api_base_url = f"{config.API_PROTOCOL}://{config.API_HOST}:{config.API_PORT}"
+        original_env['RUNBOOK_API_BASE_URL'] = os.environ.get('RUNBOOK_API_BASE_URL')
+        os.environ['RUNBOOK_API_BASE_URL'] = api_base_url
+        logger.debug(f"Set system environment variable: RUNBOOK_API_BASE_URL = {api_base_url}")
+        
+        # Set recursion stack as JSON string
+        if recursion_stack is not None:
+            recursion_stack_json = json.dumps(recursion_stack)
+            original_env['RUNBOOK_RECURSION_STACK'] = os.environ.get('RUNBOOK_RECURSION_STACK')
+            os.environ['RUNBOOK_RECURSION_STACK'] = recursion_stack_json
+            logger.debug(f"Set system environment variable: RUNBOOK_RECURSION_STACK = {recursion_stack_json}")
         
         try:
             # Create isolated temporary directory for this execution (prevents path traversal)
@@ -205,7 +252,7 @@ class ScriptExecutor:
                     except Exception as cleanup_error:
                         logger.warning(f"Failed to clean up temp directory {temp_exec_dir}: {cleanup_error}")
         finally:
-            # Restore original environment variables
+            # Restore original environment variables (including system-managed vars)
             for key, original_value in original_env.items():
                 if original_value is None:
                     # Variable didn't exist before, remove it
@@ -213,8 +260,13 @@ class ScriptExecutor:
                     logger.debug(f"Restored environment: removed {key}")
                 else:
                     # Restore original value
+                    # Mask token value in logs for security
+                    if key == 'RUNBOOK_API_TOKEN':
+                        logger.debug(f"Restored environment: {key} = (masked)")
+                    else:
+                        display_value = original_value[:50] if len(str(original_value)) > 50 else original_value
+                        logger.debug(f"Restored environment: {key} = {display_value}...")
                     os.environ[key] = original_value
-                    logger.debug(f"Restored environment: {key} = {original_value[:50] if len(str(original_value)) > 50 else original_value}...")
     
     @staticmethod
     def _truncate_output(output: str, max_bytes: int) -> Tuple[str, bool]:

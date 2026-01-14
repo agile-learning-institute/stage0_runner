@@ -197,6 +197,14 @@ class RunbookService:
                     if not script:
                         raise HTTPInternalServerError("Could not extract script from runbook")
                     
+                    # Extract input paths from File System Requirements
+                    fs_section = RunbookParser.extract_section(content, 'File System Requirements')
+                    if fs_section:
+                        requirements = RunbookParser.extract_file_requirements(fs_section)
+                        input_paths = requirements.get('Input', [])
+                    else:
+                        input_paths = []
+                    
                     # Build recursion stack for script (includes current runbook)
                     new_recursion_stack = recursion_stack + [filename]
                     # Update breadcrumb with new stack (for history/logging)
@@ -211,7 +219,9 @@ class RunbookService:
                         env_vars,
                         token_string=token_string,
                         correlation_id=correlation_id,
-                        recursion_stack=new_recursion_stack
+                        recursion_stack=new_recursion_stack,
+                        input_paths=input_paths,
+                        runbook_dir=runbook_path.parent
                     )
             
             finish_time = datetime.now(timezone.utc)

@@ -1506,7 +1506,7 @@ def test_execute_runbook_recursion_stack_building():
     captured_recursion_stack = []
     original_execute = ScriptExecutor.execute_script
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_recursion_stack.append(recursion_stack)
         return 0, "success", ""
     
@@ -1539,7 +1539,7 @@ def test_execute_runbook_top_level_execution():
     # Mock ScriptExecutor to capture the recursion_stack passed to it
     captured_recursion_stack = []
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_recursion_stack.append(recursion_stack)
         return 0, "success", ""
     
@@ -1569,7 +1569,7 @@ def test_execute_runbook_passes_token_and_correlation():
     # Mock ScriptExecutor to capture parameters
     captured_params = {}
     
-    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None):
+    def mock_execute(script, env_vars=None, token_string=None, correlation_id=None, recursion_stack=None, input_paths=None, runbook_dir=None):
         captured_params['token_string'] = token_string
         captured_params['correlation_id'] = correlation_id
         captured_params['recursion_stack'] = recursion_stack

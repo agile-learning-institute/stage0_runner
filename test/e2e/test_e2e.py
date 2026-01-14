@@ -180,7 +180,7 @@ def test_e2e_complete_runbook_workflow(api_base_url, check_server_running, dev_t
 
 def test_e2e_parent_runbook_sub_runbook_execution(api_base_url, check_server_running, dev_token):
     """Test ParentRunbook.md calling SimpleRunbook.md as a sub-runbook."""
-    # Step 1: Verify ParentRunbook.md exists
+    # Step 1: Verify ParentRunbook.md exists and can be loaded
     response = requests.get(
         f'{api_base_url}/api/runbooks/ParentRunbook.md',
         headers={'Authorization': f'Bearer {dev_token}'}
@@ -190,20 +190,34 @@ def test_e2e_parent_runbook_sub_runbook_execution(api_base_url, check_server_run
     assert data['success'] is True
     assert 'ParentRunbook' in data['name']
     
-    # Step 2: Execute ParentRunbook.md (which should call SimpleRunbook.md)
+    # Step 2: Validate ParentRunbook.md to ensure it's properly formatted
+    response = requests.patch(
+        f'{api_base_url}/api/runbooks/ParentRunbook.md/validate',
+        headers={'Authorization': f'Bearer {dev_token}'},
+        json={'env_vars': {'TEST_VAR': 'parent-e2e-test'}},
+    )
+    assert response.status_code == 200, f"Validation failed: {response.text}"
+    data = response.json()
+    assert data['success'] is True, f"Validation should succeed, got errors: {data.get('errors', [])}"
+    assert len(data.get('errors', [])) == 0, f"Validation errors: {data.get('errors', [])}"
+    
+    # Step 3: Execute ParentRunbook.md (which should call SimpleRunbook.md)
     response = requests.post(
         f'{api_base_url}/api/runbooks/ParentRunbook.md/execute',
         headers={'Authorization': f'Bearer {dev_token}'},
         json={'env_vars': {'TEST_VAR': 'parent-e2e-test'}},
     )
-    assert response.status_code in [200, 500]  # 200 if success, 500 if script fails
+    # Should return 200 (validation passed) even if script execution fails
+    assert response.status_code == 200, f"Execution request failed: {response.text}"
     data = response.json()
     assert 'success' in data
     assert 'return_code' in data
     assert 'runbook' in data
     assert data['runbook'] == 'ParentRunbook.md'
     
-    # Step 3: Verify parent runbook executed (check stdout for parent messages)
+    # Step 4: Verify parent runbook executed (check stdout for parent messages)
+    # Note: success=False is OK if the script itself fails, but validation should pass
+    assert len(data.get('errors', [])) == 0, f"Execution should not have validation errors: {data.get('errors', [])}"
     if data['success']:
         assert 'Parent runbook' in data['stdout'].lower() or 'parent' in data['stdout'].lower()
         # May also see child runbook output if sub-runbook execution worked

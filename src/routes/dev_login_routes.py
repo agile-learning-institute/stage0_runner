@@ -65,8 +65,6 @@ def create_dev_login_routes():
             "roles": ["developer", "admin"]
         }
         """
-        logger.debug(f"dev_login handler called: method={request.method}, path={request.path}")
-        
         # Handle CORS preflight requests (OPTIONS bypasses rate limiting via decorator)
         if request.method == 'OPTIONS':
             response = jsonify({})
@@ -77,9 +75,7 @@ def create_dev_login_routes():
         
         # Check if dev login is enabled
         config = Config.get_instance()
-        logger.debug(f"dev_login: ENABLE_LOGIN={config.ENABLE_LOGIN}, type={type(config.ENABLE_LOGIN)}")
         if not config.ENABLE_LOGIN:
-            logger.warning("dev_login: ENABLE_LOGIN is False, raising HTTPNotFound")
             raise HTTPNotFound("Not found")
         
         # Get request data

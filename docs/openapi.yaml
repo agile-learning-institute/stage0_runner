@@ -33,6 +33,8 @@ servers:
 tags:
   - name: Runbooks
     description: Runbook operations (execute, validate, retrieve)
+  - name: Config
+    description: Configuration operations (get current configuration)
 
 paths:
   /api/runbooks:
@@ -324,6 +326,46 @@ paths:
             curl -X GET "http://localhost:8083/api/runbooks/SimpleRunbook.md/required-env" \
               -H "Authorization: Bearer YOUR_TOKEN"
 
+  /api/config:
+    get:
+      tags:
+        - Config
+      summary: Get configuration
+      description: |
+        Retrieve the current application configuration including configuration items
+        and the authenticated user's token information.
+        
+        The response includes:
+        - config_items: A list of configuration items with their values and sources
+        - token: The authenticated user's token information including user_id, roles, and claims
+      operationId: getConfig
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '401':
+          description: Unauthorized - missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X GET "http://localhost:8083/api/config" \
+              -H "Authorization: Bearer YOUR_TOKEN"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -574,3 +616,81 @@ components:
           description: The runbook filename (if applicable)
           example: InvalidRunbook.md
 
+    ConfigResponse:
+      type: object
+      required:
+        - config_items
+        - token
+      properties:
+        config_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigItem'
+          description: List of configuration items with their values and sources
+        token:
+          $ref: '#/components/schemas/TokenInfo'
+          description: The authenticated user's token information
+      description: Response from the /api/config endpoint
+
+    ConfigItem:
+      type: object
+      required:
+        - name
+        - value
+        - from
+      properties:
+        name:
+          type: string
+          description: The configuration variable name
+          example: API_PORT
+        value:
+          type: string
+          description: The configuration value (secrets are masked as "secret")
+          example: "8083"
+        from:
+          type: string
+          enum:
+            - default
+            - environment
+          description: The source of the configuration value
+          example: environment
+      description: A single configuration item with its value and source
+
+    TokenInfo:
+      type: object
+      required:
+        - user_id
+        - roles
+        - remote_ip
+        - claims
+      properties:
+        user_id:
+          type: string
+          description: The user ID from the JWT token
+          example: dev-user-1
+        roles:
+          type: array
+          items:
+            type: string
+          description: List of roles assigned to the user
+          example:
+            - developer
+            - admin
+        remote_ip:
+          type: string
+          description: The remote IP address of the client making the request
+          example: "127.0.0.1"
+        claims:
+          type: object
+          additionalProperties: true
+          description: The full JWT claims object
+          example:
+            iss: dev-idp
+            aud: dev-api
+            sub: dev-user-1
+            iat: 1234567890
+            exp: 1234571490
+            roles:
+              - developer
+              - admin
+      description: Token information extracted from the JWT authentication token

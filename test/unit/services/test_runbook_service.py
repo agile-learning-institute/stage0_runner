@@ -19,6 +19,31 @@ from src.services.rbac_authorizer import RBACAuthorizer
 from src.config.config import Config
 from src.flask_utils.exceptions import HTTPNotFound, HTTPForbidden, HTTPInternalServerError
 
+# Import test utilities for runbook cleanup
+from test.test_utils import save_runbook, restore_runbook
+
+# Paths to runbooks used in tests
+SIMPLE_RUNBOOK_PATH = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
+PARENT_RUNBOOK_PATH = Path(__file__).parent.parent.parent.parent / 'samples' / 'runbooks' / 'ParentRunbook.md'
+
+
+@pytest.fixture(autouse=True)
+def restore_runbooks_after_test():
+    """Restore runbooks after each test that may have modified them."""
+    # Save before test
+    if SIMPLE_RUNBOOK_PATH.exists():
+        save_runbook(SIMPLE_RUNBOOK_PATH)
+    if PARENT_RUNBOOK_PATH.exists():
+        save_runbook(PARENT_RUNBOOK_PATH)
+    
+    yield
+    
+    # Restore after test
+    if SIMPLE_RUNBOOK_PATH.exists():
+        restore_runbook(SIMPLE_RUNBOOK_PATH)
+    if PARENT_RUNBOOK_PATH.exists():
+        restore_runbook(PARENT_RUNBOOK_PATH)
+
 
 def test_load_valid_runbook():
     """Test loading a valid runbook."""

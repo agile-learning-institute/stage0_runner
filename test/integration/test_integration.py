@@ -5,16 +5,14 @@ Integration tests for stage0_runbook_api Flask endpoints.
 Tests all API endpoints end-to-end with authentication flows,
 error handling, and concurrent execution scenarios.
 
-Tests use SimpleRunbook.md and restore it to original state after completion.
+Tests use SimpleRunbook.md and ParentRunbook.md and restore them to original state after completion.
 """
 import os
 import sys
 import json
 import time
 import threading
-import subprocess
 from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 # Add project root to path
@@ -26,49 +24,16 @@ from src.server import create_app
 from src.config.config import Config
 from src.flask_utils.token import Token
 
-
-# Path to SimpleRunbook.md
-SIMPLE_RUNBOOK_PATH = Path(__file__).parent.parent.parent / 'samples' / 'runbooks' / 'SimpleRunbook.md'
-ORIGINAL_RUNBOOK_CONTENT: Optional[str] = None
-
-
-def save_original_runbook():
-    """Save the original content of SimpleRunbook.md."""
-    global ORIGINAL_RUNBOOK_CONTENT
-    if SIMPLE_RUNBOOK_PATH.exists():
-        with open(SIMPLE_RUNBOOK_PATH, 'r', encoding='utf-8') as f:
-            ORIGINAL_RUNBOOK_CONTENT = f.read()
-
-
-def restore_original_runbook():
-    """Restore SimpleRunbook.md to its original state using git."""
-    global ORIGINAL_RUNBOOK_CONTENT
-    # Use git to discard any changes (this is the primary method)
-    try:
-        subprocess.run(
-            ['git', 'checkout', '--', str(SIMPLE_RUNBOOK_PATH)],
-            cwd=Path(__file__).parent.parent.parent,
-            capture_output=True,
-            check=False
-        )
-    except Exception:
-        pass  # Git restore is best-effort
-    
-    # Fallback: restore from saved content if git didn't work
-    if ORIGINAL_RUNBOOK_CONTENT is not None and SIMPLE_RUNBOOK_PATH.exists():
-        try:
-            with open(SIMPLE_RUNBOOK_PATH, 'w', encoding='utf-8') as f:
-                f.write(ORIGINAL_RUNBOOK_CONTENT)
-        except Exception:
-            pass  # Best-effort restoration
+# Import test utilities for runbook cleanup
+from test.test_utils import save_all_test_runbooks, restore_all_test_runbooks
 
 
 @pytest.fixture(scope='session', autouse=True)
 def setup_and_teardown():
-    """Save original runbook before tests and restore after all tests."""
-    save_original_runbook()
+    """Save original runbooks before tests and restore after all tests."""
+    save_all_test_runbooks()
     yield
-    restore_original_runbook()
+    restore_all_test_runbooks()
 
 
 # Test fixtures

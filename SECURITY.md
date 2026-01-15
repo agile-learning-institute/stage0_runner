@@ -19,7 +19,6 @@ The API implements several security measures to protect against common vulnerabi
 ### Resource Limits
 - **Script timeout** - Scripts are terminated after a configurable timeout (default: 10 minutes)
 - **Output size limits** - Script output is truncated to prevent memory exhaustion (default: 10MB)
-- **Rate limiting** - API endpoints are rate-limited to prevent DoS attacks (default: 60 req/min, 10 exec/min)
 
 ### Execution Isolation
 - **Temporary directory isolation** - Scripts are executed in isolated temporary directories per execution
@@ -38,23 +37,18 @@ The API implements several security measures to protect against common vulnerabi
    - **MUST** set `ENABLE_LOGIN=false` (or omit it, as false is default) to disable `/dev-login` endpoint
    - **NEVER** enable dev-login in production - it allows anyone to generate tokens with arbitrary roles
 
-3. **Rate Limiting**
-   - **SHOULD** enable rate limiting (`RATE_LIMIT_ENABLED=true`)
-   - **SHOULD** configure appropriate limits for your expected load
-   - **SHOULD** use Redis backend (`RATE_LIMIT_STORAGE_BACKEND=redis`) for multi-instance deployments
-
-4. **Network Security**
+3. **Network Security**
    - **MUST** use HTTPS/TLS in production (configure via reverse proxy or load balancer)
    - **SHOULD** restrict network access to the API server
    - **SHOULD** use a reverse proxy (nginx, Traefik, etc.) for additional security layers
 
-5. **Container Security**
+4. **Container Security**
    - **SHOULD** run containers as non-root user
    - **SHOULD** use read-only file systems where possible
    - **SHOULD** limit container capabilities
    - **SHOULD** scan container images for vulnerabilities
 
-6. **Monitoring and Logging**
+5. **Monitoring and Logging**
    - **SHOULD** monitor for failed authentication attempts
    - **SHOULD** log all runbook executions and RBAC failures
    - **SHOULD** set up alerts for suspicious activity
@@ -84,7 +78,6 @@ The API implements several security measures to protect against common vulnerabi
 - **Resource contention** - Multiple concurrent script executions may compete for system resources (CPU, memory, disk I/O)
 
 **Recommendations:**
-- **Limit concurrency** - Use rate limiting to control concurrent executions
 - **Monitor resource usage** - Set up alerts for high resource consumption
 - **Consider database storage** - For high-concurrency scenarios, consider moving history to a database
 
@@ -103,7 +96,6 @@ The API is designed to protect against:
 - ✅ Unauthorized access (via JWT authentication)
 - ✅ Path traversal attacks (via filename sanitization)
 - ✅ Resource exhaustion (via timeouts and output limits)
-- ✅ DoS attacks (via rate limiting)
 - ✅ Command injection via environment variables (via validation/sanitization)
 
 The API does **NOT** protect against:

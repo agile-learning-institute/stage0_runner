@@ -30,10 +30,6 @@ def handle_route_exceptions(f):
             logger.error(f"HTTPInternalServerError: {e.message}")
             return jsonify({"error": e.message}), e.status_code
         except Exception as e:
-            # Handle Flask-Limiter RateLimitExceeded exception
-            if hasattr(e, 'status_code') and e.status_code == 429:
-                logger.warning(f"Rate limit exceeded: {str(e)}")
-                return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
             logger.error(f"Unexpected error in route {f.__name__}: {str(e)}", exc_info=True)
             return jsonify({"error": "A processing error occurred"}), 500
     return decorated_function

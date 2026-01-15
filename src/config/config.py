@@ -7,6 +7,7 @@ with support for configuration sources (environment variables, defaults).
 This is a simplified version without MongoDB dependencies.
 """
 import os
+import sys
 import json
 from pathlib import Path
 
@@ -78,19 +79,12 @@ class Config:
             # Script Execution Resource Limits
             self.SCRIPT_TIMEOUT_SECONDS = 0
             self.MAX_OUTPUT_SIZE_BYTES = 0
-            
-            # Rate Limiting Configuration
-            self.RATE_LIMIT_ENABLED = False
-            self.RATE_LIMIT_PER_MINUTE = 0
-            self.RATE_LIMIT_EXECUTE_PER_MINUTE = 0
-            self.RATE_LIMIT_STORAGE_BACKEND = ''
     
             # Default Values grouped by value type            
             self.config_strings = {
                 "BUILT_AT": "LOCAL",
                 "LOGGING_LEVEL": "INFO",
                 "RUNBOOKS_DIR": "./samples/runbooks",
-                "RATE_LIMIT_STORAGE_BACKEND": "memory",  # memory or redis (if available)
                 "API_PROTOCOL": "http",  # http or https
                 "API_HOST": "localhost",  # hostname for API base URL
             }
@@ -99,14 +93,11 @@ class Config:
                 "JWT_TTL_MINUTES": "480",
                 "SCRIPT_TIMEOUT_SECONDS": "600",  # 10 minutes default
                 "MAX_OUTPUT_SIZE_BYTES": "10485760",  # 10MB default (10 * 1024 * 1024)
-                "RATE_LIMIT_PER_MINUTE": "60",  # 60 requests per minute default
-                "RATE_LIMIT_EXECUTE_PER_MINUTE": "10",  # 10 executions per minute (stricter)
                 "MAX_RECURSION_DEPTH": "50",  # Maximum recursion depth for nested runbook execution
             }
 
             self.config_booleans = {
-                "ENABLE_LOGIN": "false",
-                "RATE_LIMIT_ENABLED": "true"
+                "ENABLE_LOGIN": "false"
             }            
 
             self.config_string_secrets = {  
@@ -154,6 +145,16 @@ class Config:
         # Initialize String Secrets
         for key, default in self.config_string_secrets.items():
             value = self._get_config_value(key, default, True)
+            
+            # Special handling for JWT_SECRET: fail fast if default is used
+            if key == "JWT_SECRET" and value == default:
+                error_msg = (
+                    "JWT_SECRET must be explicitly set. Using the default value is not allowed for security reasons. "
+                    "Please set JWT_SECRET environment variable to a secure random value."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
             setattr(self, key, value)
 
         # Set JWT defaults that aren't secrets
@@ -189,7 +190,6 @@ class Config:
         
         # Configure logging with force=True to reconfigure even if handlers exist
         # (e.g., if Flask/Werkzeug has already configured handlers)
-        import sys
         if sys.version_info >= (3, 8):
             logging.basicConfig(
                 level=logging_level,

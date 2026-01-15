@@ -64,7 +64,9 @@ def check_server_running(api_base_url):
 @pytest.fixture
 def dev_token(api_base_url, check_server_running):
     """Get a dev token with sre, api, data, and ux roles to match sample runbooks."""
-    # Try dev-login endpoint (may be at root or /dev-login)
+    # Runbooks require: SimpleRunbook (sre, api), CreatePackage (sre, api), 
+    # ParentRunbook (sre), Runbook (sre, data, api, ux)
+    # So we need: sre, api, data, ux to cover all runbooks
     for endpoint in ['/dev-login', '/api/dev-login']:
         try:
             response = requests.post(
@@ -233,13 +235,15 @@ def test_e2e_createpackage_input_files_and_folders(api_base_url, check_server_ru
     assert response.status_code == 200
     data = response.json()
     assert data['success'] is True
-    assert 'CreatePackage' in data['name']
+    # Runbook name might be "CreatePackage" or "Create Package" (with space)
+    assert 'CreatePackage' in data['name'] or 'Create Package' in data['name']
     
     # Step 2: Validate CreatePackage.md
+    # Note: CreatePackage.md may require ORG and REPO env vars in addition to GITHUB_TOKEN
     response = requests.patch(
         f'{api_base_url}/api/runbooks/CreatePackage.md/validate',
         headers={'Authorization': f'Bearer {dev_token}'},
-        json={'env_vars': {'GITHUB_TOKEN': 'test-token'}},
+        json={'env_vars': {'GITHUB_TOKEN': 'test-token', 'ORG': 'test-org', 'REPO': 'test-repo'}},
     )
     assert response.status_code == 200, f"Validation failed: {response.text}"
     data = response.json()
@@ -250,7 +254,7 @@ def test_e2e_createpackage_input_files_and_folders(api_base_url, check_server_ru
     response = requests.post(
         f'{api_base_url}/api/runbooks/CreatePackage.md/execute',
         headers={'Authorization': f'Bearer {dev_token}'},
-        json={'env_vars': {'GITHUB_TOKEN': 'test-token'}},
+        json={'env_vars': {'GITHUB_TOKEN': 'test-token', 'ORG': 'test-org', 'REPO': 'test-repo'}},
     )
     assert response.status_code == 200, f"Execution request failed: {response.text}"
     data = response.json()
@@ -364,7 +368,7 @@ def test_e2e_rbac_authorization_flow(api_base_url, check_server_running, dev_tok
     data = response.json()
     assert 'error' in data
     
-    # Step 5: Developer with proper role can execute
+    # Step 5: User with proper roles (sre, api) can execute
     response = requests.post(
         f'{api_base_url}/api/runbooks/SimpleRunbook.md/execute',
         headers={'Authorization': f'Bearer {dev_token}'},

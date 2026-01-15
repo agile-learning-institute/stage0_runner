@@ -40,8 +40,8 @@ class Token:
         try:
             config = Config.get_instance()
             try:
-                if config.JWT_SECRET and config.JWT_SECRET != "dev-secret-change-me":
-                    # Production: verify signature
+                if config.JWT_SECRET:
+                    # Verify signature with the configured secret
                     self.claims = jwt.decode(
                         token_string,
                         config.JWT_SECRET,
@@ -50,7 +50,7 @@ class Token:
                         issuer=config.JWT_ISSUER,
                     )
                 else:
-                    # Development: decode without signature verification
+                    # No secret configured: decode without signature verification (development only)
                     self.claims = jwt.decode(
                         token_string,
                         options={"verify_signature": False}

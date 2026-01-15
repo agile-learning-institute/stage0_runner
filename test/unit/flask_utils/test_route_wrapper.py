@@ -83,21 +83,6 @@ class TestHandleRouteExceptions:
             assert status == 500
             assert result.json == {"error": "Database error"}
     
-    def test_rate_limit_exception(self):
-        """Test that rate limit exception (429) is handled correctly."""
-        class RateLimitExceeded(Exception):
-            status_code = 429
-        
-        @handle_route_exceptions
-        def test_function():
-            raise RateLimitExceeded()
-        
-        app = Flask(__name__)
-        with app.app_context():
-            result, status = test_function()
-            assert status == 429
-            assert result.json == {"error": "Rate limit exceeded. Please try again later."}
-    
     def test_unexpected_exception(self):
         """Test that unexpected exceptions are handled gracefully."""
         @handle_route_exceptions

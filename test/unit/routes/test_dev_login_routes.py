@@ -25,6 +25,7 @@ def flask_app():
     
     # Enable dev login
     os.environ['ENABLE_LOGIN'] = 'true'
+    os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     app = Flask(__name__)
     app.config['TESTING'] = True
@@ -44,6 +45,7 @@ def flask_app_login_disabled():
     
     # Disable dev login
     os.environ['ENABLE_LOGIN'] = 'false'
+    os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     app = Flask(__name__)
     app.config['TESTING'] = True
@@ -75,24 +77,6 @@ def test_dev_login_disabled_returns_404(flask_app_login_disabled):
     assert response.status_code == 404
 
 
-def test_dev_login_rate_limiting_disabled(flask_app):
-    """Test that dev-login works when rate limiting is disabled."""
-    config = Config.get_instance()
-    original_rate_limit = config.RATE_LIMIT_ENABLED
-    
-    try:
-        config.RATE_LIMIT_ENABLED = False
-        
-        client = flask_app.test_client()
-        response = client.post('/dev-login', json={'subject': 'test-user'})
-        
-        assert response.status_code == 200
-        data = response.get_json()
-        assert 'access_token' in data
-    finally:
-        config.RATE_LIMIT_ENABLED = original_rate_limit
-
-
 def test_dev_login_jwt_encoding_error(flask_app):
     """Test that dev-login handles JWT encoding errors."""
     with patch('src.routes.dev_login_routes.jwt.encode') as mock_encode:
@@ -107,18 +91,3 @@ def test_dev_login_jwt_encoding_error(flask_app):
         assert 'Error generating token' in data['error']
 
 
-def test_dev_login_rate_limit_string_none(flask_app):
-    """Test that OPTIONS method bypasses rate limiting (limit_str is None)."""
-    config = Config.get_instance()
-    original_rate_limit = config.RATE_LIMIT_ENABLED
-    
-    try:
-        config.RATE_LIMIT_ENABLED = True
-        
-        client = flask_app.test_client()
-        # OPTIONS should work without rate limiting
-        response = client.options('/dev-login')
-        
-        assert response.status_code == 200
-    finally:
-        config.RATE_LIMIT_ENABLED = original_rate_limit

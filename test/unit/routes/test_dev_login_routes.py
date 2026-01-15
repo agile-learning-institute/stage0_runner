@@ -25,6 +25,7 @@ def flask_app():
     
     # Enable dev login
     os.environ['ENABLE_LOGIN'] = 'true'
+    os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     app = Flask(__name__)
     app.config['TESTING'] = True
@@ -44,6 +45,7 @@ def flask_app_login_disabled():
     
     # Disable dev login
     os.environ['ENABLE_LOGIN'] = 'false'
+    os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     app = Flask(__name__)
     app.config['TESTING'] = True

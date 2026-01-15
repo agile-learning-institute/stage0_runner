@@ -48,6 +48,7 @@ def flask_app():
     os.environ['ENABLE_LOGIN'] = 'true'
     os.environ['RUNBOOKS_DIR'] = str(Path(__file__).parent.parent.parent / 'samples' / 'runbooks')
     os.environ['SCRIPT_TIMEOUT_SECONDS'] = '60'
+    os.environ['JWT_SECRET'] = 'test-secret-for-integration-tests'
     os.environ['MAX_OUTPUT_SIZE_BYTES'] = '10485760'
     
     app = create_app()

@@ -7,8 +7,8 @@ with support for configuration sources (environment variables, defaults).
 This is a simplified version without MongoDB dependencies.
 """
 import os
+import sys
 import json
-import secrets
 from pathlib import Path
 
 import logging
@@ -146,16 +146,14 @@ class Config:
         for key, default in self.config_string_secrets.items():
             value = self._get_config_value(key, default, True)
             
-            # Special handling for JWT_SECRET: generate random secret if default is used
+            # Special handling for JWT_SECRET: fail fast if default is used
             if key == "JWT_SECRET" and value == default:
-                # Generate a cryptographically secure random secret (32 bytes = 256 bits)
-                value = secrets.token_urlsafe(32)
-                # Update the config_items entry to reflect that it was generated
-                for item in self.config_items:
-                    if item['name'] == 'JWT_SECRET':
-                        item['from'] = 'generated'
-                        break
-                logger.info("Generated random JWT_SECRET (default was used)")
+                error_msg = (
+                    "JWT_SECRET must be explicitly set. Using the default value is not allowed for security reasons. "
+                    "Please set JWT_SECRET environment variable to a secure random value."
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
             setattr(self, key, value)
 
@@ -192,7 +190,6 @@ class Config:
         
         # Configure logging with force=True to reconfigure even if handlers exist
         # (e.g., if Flask/Werkzeug has already configured handlers)
-        import sys
         if sys.version_info >= (3, 8):
             logging.basicConfig(
                 level=logging_level,

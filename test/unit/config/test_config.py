@@ -22,6 +22,8 @@ class TestConfigSingleton:
         """Test that Config enforces singleton pattern."""
         # Reset singleton
         Config._instance = None
+        # Set JWT_SECRET to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
         
         # Create first instance
         config1 = Config.get_instance()
@@ -38,6 +40,8 @@ class TestConfigSingleton:
         """Test that get_instance creates instance if none exists."""
         # Reset singleton
         Config._instance = None
+        # Set JWT_SECRET to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
         
         config = Config.get_instance()
         assert config is not None
@@ -51,9 +55,11 @@ class TestConfigDefaults:
         """Reset config before each test."""
         Config._instance = None
         # Clear relevant env vars
-        for key in ['API_PORT', 'RUNBOOKS_DIR', 'ENABLE_LOGIN', 'JWT_SECRET']:
+        for key in ['API_PORT', 'RUNBOOKS_DIR', 'ENABLE_LOGIN']:
             if key in os.environ:
                 del os.environ[key]
+        # Always set JWT_SECRET to a non-default value to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     def test_string_defaults(self):
         """Test default string values."""
@@ -84,15 +90,15 @@ class TestConfigDefaults:
         assert config.JWT_AUDIENCE == "dev-api"
     
     def test_secret_defaults(self):
-        """Test secret default values - should generate random secret if default is used."""
+        """Test secret default values - should use provided value, fail-fast if default is used."""
         config = Config.get_instance()
-        # When default is used, a random secret should be generated (not the default string)
-        assert config.JWT_SECRET != "dev-secret-change-me"
-        assert len(config.JWT_SECRET) > 0  # Should have a generated value
-        # Check that it's marked as generated in config_items
+        # Should use the test secret set in setup_method
+        assert config.JWT_SECRET == 'test-secret-for-unit-tests'
+        assert len(config.JWT_SECRET) > 0
+        # Check that it's marked as from environment in config_items
         jwt_item = next((item for item in config.config_items if item['name'] == 'JWT_SECRET'), None)
         assert jwt_item is not None
-        assert jwt_item['from'] == 'generated'
+        assert jwt_item['from'] == 'environment'
 
 
 class TestConfigEnvironmentVariables:
@@ -101,6 +107,8 @@ class TestConfigEnvironmentVariables:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
+        # Always set JWT_SECRET to a non-default value to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     def teardown_method(self):
         """Clean up environment variables."""
@@ -159,6 +167,8 @@ class TestConfigItems:
         Config._instance = None
         if 'RUNBOOKS_DIR' in os.environ:
             del os.environ['RUNBOOKS_DIR']
+        # Always set JWT_SECRET to a non-default value to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     def test_config_items_tracks_defaults(self):
         """Test that config_items tracks default values."""
@@ -197,6 +207,8 @@ class TestConfigMethods:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
+        # Always set JWT_SECRET to a non-default value to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     def teardown_method(self):
         """Clean up environment variables."""
@@ -292,6 +304,8 @@ class TestConfigLogging:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
+        # Always set JWT_SECRET to a non-default value to avoid fail-fast
+        os.environ['JWT_SECRET'] = 'test-secret-for-unit-tests'
     
     def test_configure_logging_sets_level(self):
         """Test that configure_logging sets logging level."""

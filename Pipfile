@@ -18,10 +18,10 @@ pytest-cov = "*"
 requests = "*"
 
 [scripts]
-test = "pytest test/unit test/integration -v"
-e2e = "pytest test/e2e -v"
-dev = "python -c \"import sys, os; from pathlib import Path; os.environ['ENABLE_LOGIN'] = 'true'; os.environ['RUNBOOKS_DIR'] = str(Path.cwd() / 'samples' / 'runbooks'); sys.path.insert(0, str(Path.cwd())); os.chdir(str(Path.cwd())); exec(open('src/server.py').read())\""
-coverage = "bash -c 'mkdir -p coverage && pytest test/unit test/integration --cov=src --cov-report=json:coverage/coverage.json --cov-report=term && python src/update_coverage_report.py'"
+test = "bash -c 'export JWT_SECRET=$(date +%s) && pytest test/unit test/integration -v'"
+e2e = "bash -c 'export JWT_SECRET=$(date +%s) && pytest test/e2e -v'"
+dev = "bash -c 'export ENABLE_LOGIN=true RUNBOOKS_DIR=./samples/runbooks JWT_SECRET=$(date +%s) PYTHONPATH=. && python src/server.py'"
+coverage = "bash -c 'export JWT_SECRET=$(date +%s) && mkdir -p coverage && pytest test/unit test/integration --cov=src --cov-report=json:coverage/coverage.json --cov-report=term && python src/update_coverage_report.py'"
 
 [requires]
 python_version = "3.12"

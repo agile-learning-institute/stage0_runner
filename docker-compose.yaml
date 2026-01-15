@@ -12,6 +12,7 @@ services:
       RUNBOOKS_DIR: /workspace/runbooks
       ENABLE_LOGIN: "true"
       LOGGING_LEVEL: "INFO"
+      JWT_SECRET: ${JWT_SECRET:-}
     volumes:
       - ./samples/runbooks:/workspace/runbooks
     working_dir: /workspace/runbooks
@@ -35,6 +36,7 @@ services:
       RUNBOOKS_DIR: ./runbooks
       ENABLE_LOGIN: "true"
       LOGGING_LEVEL: "INFO"
+      JWT_SECRET: ${JWT_SECRET:-}
     working_dir: /opt/stage0/runner
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/metrics')"]

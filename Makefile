@@ -38,7 +38,7 @@ tail:
 get-token:
 	@curl -s -X POST $(API_URL)/dev-login \
 		-H "Content-Type: application/json" \
-		-d '{"subject": "dev-user", "roles": ["developer", "admin"]}' \
+		-d '{"subject": "dev-user", "roles": ["sre", "api", "data", "ux"]}' \
 		| jq -r '.access_token // .token // empty'
 
 validate:
@@ -63,7 +63,7 @@ execute:
 dev:
 	@$(MAKE) down || true
 	@echo "Starting API server in dev mode with local runbooks mounted..."
-	@docker-compose --profile runbook-dev up -d
+	@bash -c 'export JWT_SECRET=$$(date +%s) && docker-compose --profile runbook-dev up -d'
 	@echo "Waiting for API to be ready..."
 	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
 	@echo "API is ready at http://localhost:8083"
@@ -74,7 +74,7 @@ dev:
 deploy:
 	@$(MAKE) down || true
 	@echo "Starting API server in deploy mode with packaged runbooks..."
-	@docker-compose --profile runbook-deploy up -d
+	@bash -c 'export JWT_SECRET=$$(date +%s) && docker-compose --profile runbook-deploy up -d'
 	@echo "Waiting for API to be ready..."
 	@timeout 30 bash -c 'until curl -sf http://localhost:8083/metrics > /dev/null; do sleep 1; done' || true
 	@echo "API is ready at http://localhost:8083"

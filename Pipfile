@@ -20,7 +20,7 @@ requests = "*"
 [scripts]
 test = "pytest test/unit test/integration -v"
 e2e = "pytest test/e2e -v"
-dev = "python -c \"import sys, os; from pathlib import Path; os.environ['ENABLE_LOGIN'] = 'true'; sys.path.insert(0, str(Path.cwd())); os.chdir(str(Path.cwd())); exec(open('src/server.py').read())\""
+dev = "python -c \"import sys, os; from pathlib import Path; os.environ['ENABLE_LOGIN'] = 'true'; os.environ['RUNBOOKS_DIR'] = str(Path.cwd() / 'samples' / 'runbooks'); sys.path.insert(0, str(Path.cwd())); os.chdir(str(Path.cwd())); exec(open('src/server.py').read())\""
 coverage = "bash -c 'mkdir -p coverage && pytest test/unit test/integration --cov=src --cov-report=json:coverage/coverage.json --cov-report=term && python src/update_coverage_report.py'"
 
 [requires]

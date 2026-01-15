@@ -4,8 +4,7 @@ Dev Login routes for Flask services.
 Provides a /dev-login endpoint that issues signed JWTs for local / dev environments.
 This endpoint is only enabled when Config.ENABLE_LOGIN is True.
 """
-from flask import Blueprint, jsonify, request, current_app
-from functools import wraps
+from flask import Blueprint, jsonify, request
 from ..config.config import Config
 from ..flask_utils.route_wrapper import handle_route_exceptions
 from ..flask_utils.exceptions import HTTPNotFound, HTTPForbidden
@@ -14,32 +13,6 @@ import jwt
 
 import logging
 logger = logging.getLogger(__name__)
-
-
-def _apply_rate_limit(limit_str_getter):
-    """Apply rate limiting decorator if rate limiting is enabled."""
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            config = Config.get_instance()
-            if not config.RATE_LIMIT_ENABLED:
-                return f(*args, **kwargs)
-            
-            # Get limit string - if None, skip rate limiting (e.g., for OPTIONS)
-            limit_str = limit_str_getter() if callable(limit_str_getter) else limit_str_getter
-            if limit_str is None:
-                return f(*args, **kwargs)
-            
-            try:
-                from flask import has_app_context
-                if has_app_context() and hasattr(current_app, 'extensions') and 'limiter' in current_app.extensions:
-                    limiter = current_app.extensions['limiter']
-                    return limiter.limit(limit_str)(f)(*args, **kwargs)
-            except Exception as e:
-                logger.warning(f"Rate limiting check failed, allowing request: {e}")
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
 
 
 def create_dev_login_routes():
@@ -53,7 +26,6 @@ def create_dev_login_routes():
     config = Config.get_instance()
     
     @dev_login_routes.route('', methods=['POST', 'OPTIONS'])
-    @_apply_rate_limit(lambda: f"{Config.get_instance().RATE_LIMIT_EXECUTE_PER_MINUTE} per minute" if request.method == 'POST' else None)
     @handle_route_exceptions
     def dev_login():
         """
@@ -65,7 +37,7 @@ def create_dev_login_routes():
             "roles": ["developer", "admin"]
         }
         """
-        # Handle CORS preflight requests (OPTIONS bypasses rate limiting via decorator)
+        # Handle CORS preflight requests
         if request.method == 'OPTIONS':
             response = jsonify({})
             response.headers.add('Access-Control-Allow-Origin', '*')

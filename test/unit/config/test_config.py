@@ -62,7 +62,6 @@ class TestConfigDefaults:
         # LOGGING_LEVEL is converted to int by configure_logging(), check default instead
         assert config.get_default('LOGGING_LEVEL') == "INFO"
         assert config.RUNBOOKS_DIR == "./samples/runbooks"
-        assert config.RATE_LIMIT_STORAGE_BACKEND == "memory"
     
     def test_int_defaults(self):
         """Test default integer values."""
@@ -71,14 +70,11 @@ class TestConfigDefaults:
         assert config.JWT_TTL_MINUTES == 480
         assert config.SCRIPT_TIMEOUT_SECONDS == 600
         assert config.MAX_OUTPUT_SIZE_BYTES == 10485760
-        assert config.RATE_LIMIT_PER_MINUTE == 60
-        assert config.RATE_LIMIT_EXECUTE_PER_MINUTE == 10
     
     def test_boolean_defaults(self):
         """Test default boolean values."""
         config = Config.get_instance()
         assert config.ENABLE_LOGIN is False
-        assert config.RATE_LIMIT_ENABLED is True
     
     def test_jwt_defaults(self):
         """Test JWT-related defaults."""
@@ -88,9 +84,15 @@ class TestConfigDefaults:
         assert config.JWT_AUDIENCE == "dev-api"
     
     def test_secret_defaults(self):
-        """Test secret default values."""
+        """Test secret default values - should generate random secret if default is used."""
         config = Config.get_instance()
-        assert config.JWT_SECRET == "dev-secret-change-me"
+        # When default is used, a random secret should be generated (not the default string)
+        assert config.JWT_SECRET != "dev-secret-change-me"
+        assert len(config.JWT_SECRET) > 0  # Should have a generated value
+        # Check that it's marked as generated in config_items
+        jwt_item = next((item for item in config.config_items if item['name'] == 'JWT_SECRET'), None)
+        assert jwt_item is not None
+        assert jwt_item['from'] == 'generated'
 
 
 class TestConfigEnvironmentVariables:
@@ -217,7 +219,6 @@ class TestConfigMethods:
         """Test get_default for boolean config."""
         config = Config.get_instance()
         assert config.get_default('ENABLE_LOGIN') is False
-        assert config.get_default('RATE_LIMIT_ENABLED') is True
     
     def test_get_default_secret(self):
         """Test get_default for secret config."""

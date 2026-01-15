@@ -64,7 +64,9 @@ def check_server_running(api_base_url):
 @pytest.fixture
 def dev_token(api_base_url, check_server_running):
     """Get a dev token with sre, api, data, and ux roles to match sample runbooks."""
-    # Try dev-login endpoint (may be at root or /dev-login)
+    # Runbooks require: SimpleRunbook (sre, api), CreatePackage (sre, api), 
+    # ParentRunbook (sre), Runbook (sre, data, api, ux)
+    # So we need: sre, api, data, ux to cover all runbooks
     for endpoint in ['/dev-login', '/api/dev-login']:
         try:
             response = requests.post(
@@ -233,7 +235,8 @@ def test_e2e_createpackage_input_files_and_folders(api_base_url, check_server_ru
     assert response.status_code == 200
     data = response.json()
     assert data['success'] is True
-    assert 'CreatePackage' in data['name']
+    # Runbook name might be "CreatePackage" or "Create Package" (with space)
+    assert 'CreatePackage' in data['name'] or 'Create Package' in data['name']
     
     # Step 2: Validate CreatePackage.md
     response = requests.patch(

@@ -24,7 +24,8 @@ class TestTokenInitialization:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
-        os.environ['JWT_SECRET'] = 'dev-secret-change-me'
+        # Use 'dev-secret' to match the secret used for encoding tokens in tests
+        os.environ['JWT_SECRET'] = 'dev-secret'
         os.environ['JWT_ALGORITHM'] = 'HS256'
         os.environ['JWT_ISSUER'] = 'dev-idp'
         os.environ['JWT_AUDIENCE'] = 'dev-api'
@@ -66,11 +67,13 @@ class TestTokenInitialization:
                 Token(mock_request)
     
     def test_valid_token_development_mode(self):
-        """Test that valid token in development mode is decoded."""
-        # Create a test token
+        """Test that valid token is decoded with signature verification."""
+        # Create a test token with required claims (iss, aud) for signature verification
         payload = {
             'sub': 'test_user',
             'roles': ['admin'],
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -87,9 +90,11 @@ class TestTokenInitialization:
     
     def test_expired_token(self):
         """Test that expired token raises HTTPUnauthorized."""
-        # Create an expired token
+        # Create an expired token with required claims
         payload = {
             'sub': 'test_user',
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -109,7 +114,8 @@ class TestTokenClaimMapping:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
-        os.environ['JWT_SECRET'] = 'dev-secret-change-me'
+        # Use 'dev-secret' to match the secret used for encoding tokens in tests
+        os.environ['JWT_SECRET'] = 'dev-secret'
     
     def teardown_method(self):
         """Clean up environment variables."""
@@ -120,6 +126,8 @@ class TestTokenClaimMapping:
         """Test that 'sub' claim is mapped to 'user_id'."""
         payload = {
             'sub': 'test_user',
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -139,6 +147,8 @@ class TestTokenClaimMapping:
         payload = {
             'sub': 'test_user',
             'roles': 'admin,developer',
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -157,6 +167,8 @@ class TestTokenClaimMapping:
         payload = {
             'sub': 'test_user',
             'roles': ['admin', 'developer'],
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -174,6 +186,8 @@ class TestTokenClaimMapping:
         """Test that missing roles defaults to empty list."""
         payload = {
             'sub': 'test_user',
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -194,7 +208,8 @@ class TestTokenToDict:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
-        os.environ['JWT_SECRET'] = 'dev-secret-change-me'
+        # Use 'dev-secret' to match the secret used for encoding tokens in tests
+        os.environ['JWT_SECRET'] = 'dev-secret'
     
     def teardown_method(self):
         """Clean up environment variables."""
@@ -206,6 +221,8 @@ class TestTokenToDict:
         payload = {
             'sub': 'test_user',
             'roles': ['admin'],
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
@@ -233,7 +250,8 @@ class TestCreateFlaskToken:
     def setup_method(self):
         """Reset config before each test."""
         Config._instance = None
-        os.environ['JWT_SECRET'] = 'dev-secret-change-me'
+        # Use 'dev-secret' to match the secret used for encoding tokens in tests
+        os.environ['JWT_SECRET'] = 'dev-secret'
     
     def teardown_method(self):
         """Clean up environment variables."""
@@ -245,6 +263,8 @@ class TestCreateFlaskToken:
         payload = {
             'sub': 'test_user',
             'roles': ['admin'],
+            'iss': 'dev-idp',
+            'aud': 'dev-api',
             'exp': int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp())
         }
         token_string = jwt.encode(payload, 'dev-secret', algorithm='HS256')
